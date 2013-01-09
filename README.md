@@ -79,7 +79,7 @@ Create a `Garden` to coordinate work for the `Worker`:
 ```
 
 Now give the `Garden` some data about Frodo's progress in the class (the last
-arg is a JSON string:
+arg is a JSON string):
 
 ```python
 >>> garden.inputReceived('Frodo', 'assignments', 'v1', '"0.5"')
@@ -92,7 +92,7 @@ And see that the grade was computed:
 >>> store.get('Frodo', 'percent', 'v1')
 [('Frodo', 'percent', 'v1', ..., '"0.74"')]
 >>> store.get('Frodo', 'letter', 'v1')
-[('Frodo', 'letter', 'v1', ..., 'B')]
+[('Frodo', 'letter', 'v1', ..., '"B"')]
 ```
 
 Are you kidding me?
@@ -156,15 +156,15 @@ And see that Frodo now has two `'letter'` values:
 
 ```python
 >>> store.get('Frodo', 'letter', 'v1')
-[('Frodo', 'letter', 'v1', ..., 'B')]
+[('Frodo', 'letter', 'v1', ..., '"B"')]
 >>> store.get('Frodo', 'letter', 'v2')
-[('Frodo', 'letter', 'v2', ..., 'C')]
+[('Frodo', 'letter', 'v2', ..., '"C"')]
 ```
 
 More Versions
 -------------
 
-Now suppose we are a terrible teacher, and want to change the grade weighting
+Suppose we are a terrible teacher and want to change the grade weighting
 half way through the semester so that exams are 90% and assignments are 10%.
 We make a new version of `compute_percent`, add it to the `RecipeBook`
 and tell the `worker` about it as before.  We also indicate that both
@@ -204,11 +204,11 @@ And Frodo now has **four** versions of `'letter'`:
 
 ```python
 >>> store.get('Frodo', 'letter', 'v1')
-[('Frodo', 'letter', 'v1', ..., '"0.74"'),
-('Frodo', 'letter', 'v1', ..., '"0.98"')]
+[('Frodo', 'letter', 'v1', ..., '"A"'),
+('Frodo', 'letter', 'v1', ..., '"B"')]
 >>> store.get('Frodo', 'letter', 'v2')
-[('Frodo', 'letter', 'v2', ..., '"0.80"'),
-('Frodo', 'letter', 'v2', ..., '"0.99"')]
+[('Frodo', 'letter', 'v2', ..., '"C"'),
+('Frodo', 'letter', 'v2', ..., '"D"')]
 ```
 
 Confused?  Enlightened?
