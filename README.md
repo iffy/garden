@@ -94,3 +94,21 @@ And see that the grade was computed:
 >>> store.get('Frodo', 'letter_grade', 'version1')
 [('Frodo', 'letter_grade', 'version1', ..., 'C')
 ```
+
+Are you kidding me?
+-------------------
+
+That was way too much work.  Why would anyone want to use such a complicated
+system to do what is essentially two function calls?
+
+Because this is no ordinary garden,
+
+> In all fictional works, each time a man is confronted with several
+> alternatives, he chooses one and eliminates the others; in the fiction of
+> Ts’ui Pên, he chooses -- simultaneously -- all of them. ...In the work of
+> Ts’ui Pên, all possible outcomes occur.
+> (The Garden of Forking Paths by Jorge Luis Borges)
+
+Function versions
+-----------------
+
