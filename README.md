@@ -1,3 +1,5 @@
+[![Build Status](https://secure.travis-ci.org/iffy/garden.png)](http://travis-ci.org/iffy/garden)
+
 Garden
 ======
 
