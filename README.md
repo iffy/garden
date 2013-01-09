@@ -34,20 +34,20 @@ You are a teacher, and want to compute students' grades.  Assignments are worth
 ...         return 'F'
 ```
 
-Define how functions relate to each other by putting them in a `RecipeBook`.
-This code adds a recipe for `'percent'` that depends on
-`'assignments'` and `'exams'`.  The code also adds a recipe for
+Define how functions relate to each other by putting them in a `Garden`.
+This code adds a path for `'percent'` that depends on
+`'assignments'` and `'exams'`.  The code also adds a path for
 `'letter'` which depends on `'percent'` (gloss over the `'v1'`
 strings for now -- they will be important later):
 
 ```python
->>> from garden.recipe import RecipeBook
->>> recipe_book = RecipeBook()
->>> recipe_book.add('percent', 'v1', args=[
+>>> from garden.garden import Garden
+>>> garden = Garden()
+>>> garden.addPath('percent', 'v1', args=[
 ...     ('assignments', 'v1'),
 ...     ('exams', 'v1'),
 ... ])
->>> recipe_book.add('letter', 'v1', args=[
+>>> garden.addPath('letter', 'v1', args=[
 ...     ('percent', 'v1'),
 ... ])
 ```
@@ -70,21 +70,21 @@ Create a place to store the results:
 >>> store = InMemoryStore()
 ```
 
-Create a `Garden` to coordinate work for the `Worker`:
+Create a `Gardener` to coordinate work for the `Worker`:
 
 ```python
->>> from garden.garden import Garden
+>>> from garden.gardener import Gardener
 >>> from garden.local import LocalWorkDispatcher
 >>> dispatcher = LocalWorkDispatcher(worker)
->>> garden = Garden(recipe_book, store, dispatcher, accept_all_lineages=True)
+>>> gardener = Gardener(garden, store, dispatcher, accept_all_lineages=True)
 ```
 
-Now give the `Garden` some data about Frodo's progress in the class (the last
+Now give the `Gardener` some data about Frodo's progress in the class (the last
 arg is a JSON string):
 
 ```python
->>> garden.inputReceived('Frodo', 'assignments', 'v1', '"0.5"')
->>> garden.inputReceived('Frodo', 'exams', 'v1', '"0.9"')
+>>> gardener.inputReceived('Frodo', 'assignments', 'v1', '"0.5"')
+>>> gardener.inputReceived('Frodo', 'exams', 'v1', '"0.9"')
 ```
 
 And see that the grade was computed:
@@ -133,10 +133,10 @@ test our fix before we replace the buggy function.  Here's our fixed function:
 ...         return 'F'
 ```
 
-Add the new function spec to the `RecipeBook`, with a distinct version:
+Add the new function spec to the `Garden`, with a distinct version:
 
 ```python
->>> recipe_book.add('letter', 'v2', args=[
+>>> garden.addPath('letter', 'v2', args=[
 ...     ('percent', 'v1'),
 ... ])
 ```
@@ -150,7 +150,7 @@ Tell the worker about the new function:
 Compute the function for all students (only Frodo's data has been added):
 
 ```python
->>> garden.forceCompute('letter', 'v2')
+>>> gardener.forceCompute('letter', 'v2')
 ```
 
 And see that Frodo now has two `'letter'` values:
@@ -167,7 +167,7 @@ More Versions
 
 Suppose we are a terrible teacher and want to change the grade weighting
 half way through the semester so that exams are 90% and assignments are 10%.
-We make a new version of `compute_percent`, add it to the `RecipeBook`
+We make a new version of `compute_percent`, add it to the `Garden`
 and tell the `worker` about it as before.  We also indicate that both
 `'letter'` functions can use this new `'percent'` as an input:
 
@@ -177,19 +177,19 @@ and tell the `worker` about it as before.  We also indicate that both
 ...    exams = D(exams)
 ...    return (D('0.1') * assignments) + (D('0.9') * exams)
 ...
->>> recipe_book.add('percent', 'v2', args=[
+>>> garden.addPath('percent', 'v2', args=[
 ...     ('assignments', 'v1'),
 ...     ('exams', 'v1'),
 ... ])
->>> recipe_book.add('letter', 'v1', args=[
+>>> garden.addPath('letter', 'v1', args=[
 ...     ('percent', 'v2'),
 ... ])
->>> recipe_book.add('letter', 'v2', args=[
+>>> garden.addPath('letter', 'v2', args=[
 ...     ('percent', 'v2'),
 ... ])
->>> recipe_book.add('letter', 'v1
+>>> garden.addPath('letter', 'v1
 >>> worker.addFunction('percent', 'v2', compute_percent_v2)
->>> garden.forceCompute('percent', 'v2')
+>>> gardener.forceCompute('percent', 'v2')
 ```
 
 As you may expect, Frodo now has two versions of `'percent'`:
