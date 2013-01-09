@@ -13,26 +13,28 @@ You are a teacher, and want to compute student's grades.  Assignments are worth
 40% of the grade and exams 60%:
 
 ```python
-from decimal import Decimal as D
-
-def compute_grade_percent(assignment_percent, exam_percent):
-    return (D('0.4') * assignment_percent) + (D('0.6') * exam_percent)
+>>> from decimal import Decimal as D
+>>> def compute_grade_percent(assignment_percent, exam_percent):
+...    assignment_percent = D(assignment_percent)
+...    exam_percent = D(exam_percent)
+...    return (D('0.4') * assignment_percent) + (D('0.6') * exam_percent)
 ```
 
 In addition to percentages, you want letter grades for each student:
 
 ```python
-def compute_letter_grade(grade_percent):
-    if grade_precent > D('0.9'):
-        return 'A'
-    elif grade_precent > D('0.8'):
-        return 'B'
-    elif grade_percent > D('0.6'):
-        return 'C'
-    elif grade_percent > D('0.5'):
-        return 'D'
-    else:
-        return 'F'
+>>> def compute_letter_grade(grade_percent):
+...     grade_percent = D(grade_percent)
+...     if grade_precent > D('0.9'):
+...         return 'A'
+...     elif grade_precent > D('0.8'):
+...         return 'B'
+...     elif grade_percent > D('0.6'):
+...         return 'C'
+...     elif grade_percent > D('0.5'):
+...         return 'D'
+...     else:
+...         return 'F'
 ```
 
 Define how functions relate to each other by putting them in a `RecipeBook`.
@@ -41,16 +43,15 @@ This code adds a recipe for `'grade_percent'` that depends on
 `'letter_grade'` that depends on `'grade_percent'`:
 
 ```python
-from garden.recipe import RecipeBook
-
-recipe_book = RecipeBook()
-recipe_book.add('grade_percent', 'version1', args=[
-    ('assignment_percent', 'version1'),
-    ('exam_percent', 'version1'),
-])
-recipe_book.add('letter_grade', 'version1', args=[
-    ('grade_percent', 'version1'),
-])
+>>> from garden.recipe import RecipeBook
+>>> recipe_book = RecipeBook()
+>>> recipe_book.add('grade_percent', 'version1', args=[
+...     ('assignment_percent', 'version1'),
+...     ('exam_percent', 'version1'),
+... ])
+>>> recipe_book.add('letter_grade', 'version1', args=[
+...     ('grade_percent', 'version1'),
+... ])
 ```
 
 
@@ -58,19 +59,42 @@ Get a `Worker` ready to do the computations by telling it which functions
 correspond to which pieces of data:
 
 ```python
-from garden.worker import Worker
-
-worker = Worker()
-worker.addFunction('grade_percent', 'version1', compute_grade_percent)
-worker.addFunction('letter_grade', 'version1', compute_letter_grade)
+>>> from garden.worker import Worker
+>>> worker = Worker()
+>>> worker.addFunction('grade_percent', 'version1', compute_grade_percent)
+>>> worker.addFunction('letter_grade', 'version1', compute_letter_grade)
 ```
 
-Create a `Garden` for to coordinate work for the `Worker`:
+Create a place to store the results:
 
 ```python
-from garden.garden import Garden
-from garden.local import LocalWorkDispatcher
+>>> from garden.storage import InMemoryStore
+>>> store = InMemoryStore()
+```
 
-dispatcher = LocalWorkDispatcher(worker)
-garden = Garden(recipe_book=recipe_book, work_dispatcher=dispatcher)
-```    
+Create a `Garden` to coordinate work for the `Worker`:
+
+```python
+>>> from garden.garden import Garden
+>>> from garden.local import LocalWorkDispatcher
+>>> dispatcher = LocalWorkDispatcher(worker)
+>>> garden = Garden(recipe_book=recipe_book, work_dispatcher=dispatcher, store=store)
+>>> dispatcher.garden = garden
+```
+
+Now give the `Garden` some data about Joe's progress in the class (the last
+arg is a JSON string:
+
+```python
+>>> garden.inputReceived('Joe', 'assignment_percent', 'version1', '"0.5"')
+>>> garden.inputReceived('Joe', 'exam_percent', 'version1', '"0.9"')
+```
+
+And see that the grade was computed:
+
+```python
+>>> store.get('Joe', 'grade_percent', 'version1')
+[('Joe', 'grade_percent', 'version1', ..., '"0.74"'))]
+>>> store.get('Joe', 'letter_grade', 'version1')
+[('Joe', 'letter_grade', 'version1', ..., 'C')
+```
