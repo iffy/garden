@@ -10,7 +10,8 @@ How it works, through an example
 --------------------------------
 
 You are a teacher, and want to compute students' grades.  Assignments are worth
-40% of the grade and exams 60%.  You want letter grades too:
+40% of the grade and exams 60%.  You want letter grades too.  We'll use
+`decimal.Decimal` (imported as `D`) instead of `floats` to avoid precision problems:
 
 ```python
 >>> from decimal import Decimal as D
