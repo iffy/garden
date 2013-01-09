@@ -9,8 +9,8 @@ This project lets you create gardens of computing, forking paths.
 How it works, through an example
 --------------------------------
 
-You are a teacher, and want to compute student's grades.  Assignments are worth
-40% of the grade and exams 60%:
+You are a teacher, and want to compute students' grades.  Assignments are worth
+40% of the grade and exams 60%.  You want letter grades too:
 
 ```python
 >>> from decimal import Decimal as D
@@ -18,11 +18,7 @@ You are a teacher, and want to compute student's grades.  Assignments are worth
 ...    assignment_percent = D(assignment_percent)
 ...    exam_percent = D(exam_percent)
 ...    return (D('0.4') * assignment_percent) + (D('0.6') * exam_percent)
-```
-
-In addition to percentages, you want letter grades for each student:
-
-```python
+...
 >>> def compute_letter_grade(grade_percent):
 ...     grade_percent = D(grade_percent)
 ...     if grade_precent > D('0.9'):
@@ -40,7 +36,8 @@ In addition to percentages, you want letter grades for each student:
 Define how functions relate to each other by putting them in a `RecipeBook`.
 This code adds a recipe for `'grade_percent'` that depends on
 `'assignment_percent'` and `'exam_percent'`.  The code also adds a recipe for
-`'letter_grade'` that depends on `'grade_percent'`:
+`'letter_grade'` which depends on `'grade_percent'` (gloss over the `'version1'`
+strings for now -- they will be important later):
 
 ```python
 >>> from garden.recipe import RecipeBook
@@ -78,23 +75,22 @@ Create a `Garden` to coordinate work for the `Worker`:
 >>> from garden.garden import Garden
 >>> from garden.local import LocalWorkDispatcher
 >>> dispatcher = LocalWorkDispatcher(worker)
->>> garden = Garden(recipe_book=recipe_book, work_dispatcher=dispatcher, store=store)
->>> dispatcher.garden = garden
+>>> garden = Garden(recipe_book, store, dispatcher)
 ```
 
-Now give the `Garden` some data about Joe's progress in the class (the last
+Now give the `Garden` some data about Frodo's progress in the class (the last
 arg is a JSON string:
 
 ```python
->>> garden.inputReceived('Joe', 'assignment_percent', 'version1', '"0.5"')
->>> garden.inputReceived('Joe', 'exam_percent', 'version1', '"0.9"')
+>>> garden.inputReceived('Frodo', 'assignment_percent', 'version1', '"0.5"')
+>>> garden.inputReceived('Frodo', 'exam_percent', 'version1', '"0.9"')
 ```
 
 And see that the grade was computed:
 
 ```python
->>> store.get('Joe', 'grade_percent', 'version1')
-[('Joe', 'grade_percent', 'version1', ..., '"0.74"'))]
->>> store.get('Joe', 'letter_grade', 'version1')
-[('Joe', 'letter_grade', 'version1', ..., 'C')
+>>> store.get('Frodo', 'grade_percent', 'version1')
+[('Frodo', 'grade_percent', 'version1', ..., '"0.74"'))]
+>>> store.get('Frodo', 'letter_grade', 'version1')
+[('Frodo', 'letter_grade', 'version1', ..., 'C')
 ```
