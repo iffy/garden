@@ -46,7 +46,20 @@ class Gardener(object):
 
     def doPossibleWork(self, entity, name, version):
         """
-        XXX
+        For the given C{entity}, compute the value of the given destination
+        for all paths for which the inputs are in my C{store}.
+        
+        @type entity: str
+        @param entity: Entity name
+        
+        @type name: str
+        @param name: Destination name
+        
+        @type version: str
+        @param version: Destination version
+        
+        @return: A C{Deferred} which will fire with a list of results of
+            dispatching the work.
         """
         input_lists = self.garden.inputsFor(name, version)
         dlist = []
