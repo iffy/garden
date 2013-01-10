@@ -55,7 +55,7 @@ class Gardener(object):
         for dst in self.garden.pathsRequiring(name, version):
             d = self.doPossibleWork(entity, *dst)
             dlist.append(d)
-        return defer.DeferredList(dlist).addCallback(lambda r:[x[1] for x in r])
+        return defer.DeferredList(dlist).addCallback(self._flattenResult)
 
 
     def doPossibleWork(self, entity, name, version):

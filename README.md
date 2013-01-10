@@ -83,6 +83,7 @@ Create a `Gardener` to coordinate work for the `Worker`:
 >>> from garden.local import LocalWorkDispatcher
 >>> dispatcher = LocalWorkDispatcher(worker)
 >>> gardener = Gardener(garden, store, dispatcher, accept_all_lineages=True)
+>>> dispatcher.sendResultsTo(gardener.workReceived)
 
 ```
 
@@ -90,8 +91,10 @@ Now give the `Gardener` some data about Frodo's progress in the class (the last
 arg is a JSON string):
 
 ```python
->>> gardener.inputReceived('Frodo', 'assignments', 'v1', '"0.5"')
->>> gardener.inputReceived('Frodo', 'exams', 'v1', '"0.9"')
+>>> gardener.inputReceived('Frodo', 'assignments', 'v1', '"0.5"').result
+[]
+>>> gardener.inputReceived('Frodo', 'exams', 'v1', '"0.9"').result
+[]
 
 ```
 

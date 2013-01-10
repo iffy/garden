@@ -63,7 +63,7 @@ class GardenerTest(TestCase):
         
         g = Gardener(garden, store, None, accept_all_lineages=True)
         g.doPossibleWork = create_autospec(g.doPossibleWork,
-                               side_effect=(lambda *x: defer.succeed('hey')))
+                               side_effect=(lambda *x: defer.succeed(['hey'])))
         r = g.dataReceived('Frog', 'flour', '1', 'bbbb', 'flour value')
         
         v = store.get('Frog', 'flour', '1')

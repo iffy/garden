@@ -1,6 +1,7 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 
+from mock import create_autospec, Mock
 
 from garden.local import LocalWorkDispatcher, LocalWorker, InMemoryStore
 
@@ -16,6 +17,29 @@ class LocalWorkDispatcherTest(TestCase):
         self.assertEqual(d.worker, 'worker')
 
 
+    def test_callable(self):
+        """
+        You can dispatch to the dispatcher, and results will end up in the
+        result receiver
+        """
+        worker = LocalWorker()
+        ret = defer.Deferred()
+        worker.run = create_autospec(worker.run, return_value=ret)
+        
+        d = LocalWorkDispatcher(worker)
+        receiver = Mock()
+        d.sendResultsTo(receiver)
+        r = d('entity', 'cake', '1', 'aaaa', [], ['hashes'])
+        self.assertEqual(self.successResultOf(r), True, "Should immediately "
+                         "fire with success, even though the worker isn't done")
+        
+        worker.run.assert_called_with('cake', '1', [])
+        
+        ret.callback('result')
+        receiver.assert_called_once_with('entity', 'cake', '1', 'aaaa',
+                                         'result', ['hashes'])
+
+
 
 class LocalWorkerTest(TestCase):
 
@@ -28,6 +52,18 @@ class LocalWorkerTest(TestCase):
         def foo():
             pass
         w.addFunction('foo', 'v1', foo)
+
+
+    def test_run(self):
+        """
+        You can run a function
+        """
+        w = LocalWorker()
+        def foo(a):
+            return 'something ' + a
+        w.addFunction('foo', 'v1', foo)
+        r = w.run('foo', 'v1', ['cool'])
+        self.assertEqual(self.successResultOf(r), 'something cool')
 
 
 
