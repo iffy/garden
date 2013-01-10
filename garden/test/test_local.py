@@ -37,7 +37,7 @@ class LocalWorkDispatcherTest(TestCase):
         
         ret.callback('result')
         receiver.assert_called_once_with('entity', 'cake', '1', 'aaaa',
-                                         'result', ['hashes'])
+                                         'result', [], ['hashes'])
 
 
 

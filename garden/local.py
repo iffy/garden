@@ -16,13 +16,14 @@ class LocalWorkDispatcher(object):
     def __call__(self, entity, name, version, lineage, inputs, input_hashes):
         d = self.worker.run(name, version, inputs)
         d.addCallback(self._gotResult, entity, name, version, lineage,
-                      input_hashes)
+                      inputs, input_hashes)
         return defer.succeed(True)
 
 
-    def _gotResult(self, result, entity, name, version, lineage, input_hashes):
+    def _gotResult(self, result, entity, name, version, lineage, inputs,
+                   input_hashes):
         self.result_receiver(entity, name, version, lineage, result,
-                             input_hashes)
+                             inputs, input_hashes)
 
 
     def sendResultsTo(self, func):

@@ -39,6 +39,14 @@ class Gardener(object):
         return self.dataReceived(entity, name, version, lineal_hash, 'value')
 
 
+    def workReceived(self, entity, name, version, lineage, value, inputs,
+                     input_hashes):
+        """
+        XXX
+        """
+        return self.dataReceived(entity, name, version, lineage, value)
+
+
     def dataReceived(self, entity, name, version, lineage, value):
         """
         XXX
@@ -109,3 +117,5 @@ class Gardener(object):
         """
         hashes = [sha1(x[4]).hexdigest() for x in values]
         return self.dispatcher(entity, name, version, lineage, values, hashes)
+
+

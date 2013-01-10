@@ -26,8 +26,8 @@ class GardenerTest(TestCase):
 
     def test_inputReceived(self):
         """
-        When input is received, it should store the new data in the store
-        and not return until dataReceived does.
+        When input is received, it should compute the lineage and call
+        dataReceived.
         """
         g = Gardener(Garden(), 'store', 'dispatcher', accept_all_lineages=True)
         
@@ -41,6 +41,32 @@ class GardenerTest(TestCase):
                                                'value')        
         ret.callback('foo')
         self.assertEqual(self.successResultOf(r), 'foo')
+
+
+    def test_workReceived(self):
+        """
+        When work is received, it should call dataReceived only if the input
+        hashes match the current input hashes
+        """
+        store = InMemoryStore()
+        store.put('Toad', 'water', '1', 'aaaa', 'wet')
+        
+        garden = Garden()
+        garden.addPath('ice', '1', [
+            ('water', '1'),
+        ])
+        
+        g = Gardener(garden, store, 'dispatcher', accept_all_lineages=True)
+        
+        ret = defer.succeed('done')
+        g.dataReceived = create_autospec(g.dataReceived, return_value=ret)
+        
+        r = g.workReceived('Toad', 'ice', '1', 'bbbb', 'the result',
+                           [('Toad', 'water', '1', 'aaaa', 'wet')],
+                           [sha1('wet').hexdigest()])
+        g.dataReceived.assert_called_once_with('Toad', 'ice', '1', 'bbbb',
+                                               'the result')
+        self.assertEqual(self.successResultOf(r), 'done')
 
 
     def test_dataReceived(self):
