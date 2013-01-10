@@ -1,7 +1,7 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 
-from mock import create_autospec
+from mock import create_autospec, Mock, call
 from hashlib import sha1
 
 from garden.local import InMemoryStore
@@ -43,50 +43,129 @@ class GardenerTest(TestCase):
         self.assertEqual(self.successResultOf(r), 'foo')
 
 
-    def test_dataReceived_spawnWork(self):
-        """
-        If data is received that can cause work to happen, it should happen.
-        """
-        self.fail('Write me; I am functional')
-
-
     def test_dispatchSinglePieceOfWork(self):
         """
-        You can dispatch a single function call to happen.
+        Dispatching a single function call through this function will result
+        in the hashes being added to the function.
         """
-        called = []
         ret = defer.Deferred()
-        
-        def dispatch(entity, name, version, lineage, inputs, input_values,
-                     input_hashes):
-            called.append((entity, name, version, lineage, inputs, input_values,
-                           input_hashes))
-            return ret
+        dispatch = Mock(return_value=ret)
         
         g = Gardener(None, None, dispatch)
         r = g.dispatchSinglePieceOfWork('Bob', 'name', 'version', 'aaaa', [
-            ('arg1', '1'),
-            ('arg2', '1'),
-        ], [
-            'arg1 value',
-            'arg2 value',
+            ('Bob', 'arg1', '1', 'aaaa', 'arg1 value'),
+            ('Bob', 'arg2', '1', 'bbbb', 'arg2 value'),
         ])
         
-        self.assertEqual(called, [
-            ('Bob', 'name', 'version', 'aaaa', [
-                ('arg1', '1'),
-                ('arg2', '1'),
-            ], [
-                'arg1 value',
-                'arg2 value',
+        dispatch.assert_called_once_with('Bob', 'name', 'version', 'aaaa', [
+                ('Bob', 'arg1', '1', 'aaaa', 'arg1 value'),
+                ('Bob', 'arg2', '1', 'bbbb', 'arg2 value'),
             ], [
                 sha1('arg1 value').hexdigest(),
                 sha1('arg2 value').hexdigest(),
-            ]),
-        ], "Should call dispatch function with all args, including SHA of "
-           "input values")
+        ])
         
         ret.callback('foo')
         self.assertEqual(self.successResultOf(r), 'foo')
 
-    
+
+    def mkCakeSetup(self):
+        store = InMemoryStore()
+        store = InMemoryStore()
+        
+        garden = Garden()
+        garden.addPath('cake', '1', [
+            ('eggs', '1'),
+            ('flour', '1'),
+        ])
+        garden.addPath('cake', '1', [
+            ('eggs', '1'),
+            ('flour', 'new'),
+        ])
+        
+        def returner(*args):
+            return defer.succeed('hello?')
+        
+        g = Gardener(garden, store, None, accept_all_lineages=True)
+        g.dispatchSinglePieceOfWork = create_autospec(
+            g.dispatchSinglePieceOfWork, side_effect=returner)
+        
+        return store, garden, g
+
+
+    def test_doPossibleWork_nothing(self):
+        """
+        If there's no data, do no work.
+        """
+        store, garden, g = self.mkCakeSetup()
+        
+        r = g.doPossibleWork('sam', 'cake', '1')
+        self.assertEqual([], self.successResultOf(r))
+
+
+    def test_doPossibleWork_simple(self):
+        """
+        If there's enough data to do one piece of work, do that.
+        """
+        store, garden, g = self.mkCakeSetup()
+        
+        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
+        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
+                
+        r = g.doPossibleWork('sam', 'cake', '1')
+        g.dispatchSinglePieceOfWork.assert_called_once_with(
+            'sam', 'cake', '1',
+            linealHash('cake', '1', ['aaaa', 'bbbb']),
+            [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
+             ('sam', 'flour', '1', 'bbbb', 'flour value')]
+        )
+
+        self.assertEqual(len(self.successResultOf(r)), 1)
+
+
+    def test_doPossibleWork_multiLineage(self):
+        """
+        If there's data of multiple lineages, do work for both lineages.
+        """
+        store, garden, g = self.mkCakeSetup()
+
+        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
+        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
+        store.put('sam', 'flour', '1', 'cccc', 'flour value 2')
+        
+        r = g.doPossibleWork('sam', 'cake', '1')
+        g.dispatchSinglePieceOfWork.assert_has_calls([
+            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
+                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
+                 ('sam', 'flour', '1', 'bbbb', 'flour value')]),
+            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'cccc']),
+                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
+                 ('sam', 'flour', '1', 'cccc', 'flour value 2')]),
+        ])
+        self.assertEqual(g.dispatchSinglePieceOfWork.call_count, 2)
+        self.assertEqual(len(self.successResultOf(r)), 2)
+
+
+    def test_doPossibleWork_multiPath(self):
+        """
+        If there's data for multiple paths, do work for all paths.
+        """
+        store, garden, g = self.mkCakeSetup()
+
+        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
+        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
+        store.put('sam', 'flour', 'new', 'cccc', 'flour value 2')
+        
+        r = g.doPossibleWork('sam', 'cake', '1')
+        g.dispatchSinglePieceOfWork.assert_has_calls([
+            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
+                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
+                 ('sam', 'flour', '1', 'bbbb', 'flour value')]),
+            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'cccc']),
+                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
+                 ('sam', 'flour', 'new', 'cccc', 'flour value 2')]),
+        ])
+        self.assertEqual(g.dispatchSinglePieceOfWork.call_count, 2)
+        self.assertEqual(len(self.successResultOf(r)), 2)
+
+

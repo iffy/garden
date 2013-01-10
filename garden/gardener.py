@@ -1,4 +1,6 @@
+from twisted.internet import defer
 from hashlib import sha1
+from itertools import product
 
 from garden.path import linealHash
 
@@ -42,12 +44,41 @@ class Gardener(object):
         """
 
 
-
-    def dispatchSinglePieceOfWork(self, entity, name, version, lineage,
-                                  inputs, input_values):
+    def doPossibleWork(self, entity, name, version):
         """
         XXX
         """
-        hashes = [sha1(x).hexdigest() for x in input_values]
-        return self.dispatcher(entity, name, version, lineage, inputs,
-                               input_values, hashes)
+        input_lists = self.garden.inputsFor(name, version)
+        dlist = []
+        for input_list in input_lists:
+            values = [self.store.get(entity, x[0], x[1]) for x in input_list]
+            value_list = defer.DeferredList(values)
+            value_list.addCallback(self._gotValueList, entity, name, version)
+            value_list.addCallback(lambda r:[x[1] for x in r])
+            dlist.append(value_list)
+        return defer.DeferredList(dlist).addCallback(self._flattenResult)
+
+
+    def _gotValueList(self, values, entity, name, version):
+        values = [x[1] for x in values]
+        dlist = []
+        for combination in product(*values):
+            lineages = [x[3] for x in combination]
+            d = self.dispatchSinglePieceOfWork(entity, name, version,
+                linealHash(name, version, lineages), list(combination))
+            dlist.append(d)
+        return defer.DeferredList(dlist)
+
+
+    def _flattenResult(self, result):
+        ret = []
+        map(ret.extend, [x[1] for x in result])
+        return ret
+
+
+    def dispatchSinglePieceOfWork(self, entity, name, version, lineage, values):
+        """
+        XXX
+        """
+        hashes = [sha1(x[4]).hexdigest() for x in values]
+        return self.dispatcher(entity, name, version, lineage, values, hashes)
