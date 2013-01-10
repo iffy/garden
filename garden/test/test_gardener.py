@@ -43,6 +43,65 @@ class GardenerTest(TestCase):
         self.assertEqual(self.successResultOf(r), 'foo')
 
 
+    def test_dataReceived(self):
+        """
+        Should store the data, then call doPossibleWork for all destinations
+        for which the received data is an input.
+        """
+        store = InMemoryStore()
+        store.put('Frog', 'eggs', '1', 'aaaa', 'eggs value')
+        
+        garden = Garden()
+        garden.addPath('cake', '1', [
+            ('eggs', '1'),
+            ('flour', '1'),
+        ])
+        garden.addPath('german pancake', '1', [
+            ('eggs', '1'),
+            ('flour', '1'),
+        ])
+        
+        g = Gardener(garden, store, None, accept_all_lineages=True)
+        g.doPossibleWork = create_autospec(g.doPossibleWork,
+                               side_effect=(lambda *x: defer.succeed('hey')))
+        r = g.dataReceived('Frog', 'flour', '1', 'bbbb', 'flour value')
+        
+        v = store.get('Frog', 'flour', '1')
+        self.assertEqual(self.successResultOf(v), [
+            ('Frog', 'flour', '1', 'bbbb', 'flour value'),
+        ], "Should have store the data in the store")
+        
+        g.doPossibleWork.assert_has_calls([
+            call('Frog', 'cake', '1'),
+            call('Frog', 'german pancake', '1'),
+        ])
+        self.assertEqual(self.successResultOf(r), ['hey', 'hey'])
+
+
+    def test_dataReceived_waitForStorage(self):
+        """
+        doPossibleWork shouldn't be called until the data is stored.
+        """
+        store = InMemoryStore()
+        d = defer.Deferred()
+        store.put = create_autospec(store.put, return_value=d)
+        
+        garden = Garden()
+        garden.addPath('cooked eggs', '1', [
+            ('eggs', '1'),
+        ])
+        
+        g = Gardener(garden, store, None, accept_all_lineages=True)
+        g.doPossibleWork = create_autospec(g.doPossibleWork,
+                               side_effect=(lambda *x: defer.succeed('hey')))
+        r = g.dataReceived('Frog', 'eggs', '1', 'bbbb', 'flour value')
+        
+        self.assertEqual(g.doPossibleWork.call_count, 0, "Should not have "
+                         "started doing work before the data is stored")
+        d.callback({'changed': True})
+        self.assertEqual(g.doPossibleWork.call_count, 1)
+
+
     def test_dispatchSinglePieceOfWork(self):
         """
         Dispatching a single function call through this function will result

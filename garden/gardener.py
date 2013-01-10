@@ -41,7 +41,21 @@ class Gardener(object):
 
     def dataReceived(self, entity, name, version, lineage, value):
         """
+        XXX
         """
+        r = self.store.put(entity, name, version, lineage, value)
+        return r.addCallback(self._dataStored, entity, name, version)
+
+
+    def _dataStored(self, result, entity, name, version):
+        """
+        XXX
+        """
+        dlist = []
+        for dst in self.garden.pathsRequiring(name, version):
+            d = self.doPossibleWork(entity, *dst)
+            dlist.append(d)
+        return defer.DeferredList(dlist).addCallback(lambda r:[x[1] for x in r])
 
 
     def doPossibleWork(self, entity, name, version):
