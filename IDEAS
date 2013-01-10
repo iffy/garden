@@ -1,0 +1,24 @@
+# flamingo.git/flamingo/worker.py
+from garden import InProcessWorker
+
+from flamingo import func1, func2
+
+worker.addFunction('func1', '1', func1)
+worker.addFunction('func2', '1', func2)
+
+
+# to hook the worker up to RabbitMQ
+# twistd garden worker --module flamingo.worker --in rabbitmq:10.1.2.3:1234 --out rabbitmq:10.1.2.3:1234
+
+# to hook the worker up using AMP
+# twistd garden worker --module flamingo.worker --in amp:tcp:host=10.1.2.3:port=1234 --out amp:tcp:host=10.1.2.3:port=1234
+
+# or the hook up could be built in to the module
+from garden.rabbitmq import Receiver, Sender
+
+sender = Sender('10.1.2.3', 1234)
+sender.setWorker(worker)
+receiver = Receiver('10.1.2.3', 1234)
+worker.sendResultsTo(receiver)
+
+
