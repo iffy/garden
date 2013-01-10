@@ -34,6 +34,7 @@ You are a teacher, and want to compute students' grades.  Assignments are worth
 ...         return 'D'
 ...     else:
 ...         return 'F'
+
 ```
 
 Define how functions relate to each other by putting them in a `Garden`.
@@ -45,13 +46,14 @@ strings for now -- they will be important later):
 ```python
 >>> from garden.garden import Garden
 >>> garden = Garden()
->>> garden.addPath('percent', 'v1', args=[
+>>> garden.addPath('percent', 'v1', inputs=[
 ...     ('assignments', 'v1'),
 ...     ('exams', 'v1'),
 ... ])
->>> garden.addPath('letter', 'v1', args=[
+>>> garden.addPath('letter', 'v1', inputs=[
 ...     ('percent', 'v1'),
 ... ])
+
 ```
 
 
@@ -59,17 +61,19 @@ Get a `Worker` ready to do the computations by telling it which functions
 correspond to which pieces of data:
 
 ```python
->>> from garden.worker import Worker
->>> worker = Worker()
+>>> from garden.local import LocalWorker
+>>> worker = LocalWorker()
 >>> worker.addFunction('percent', 'v1', compute_percent)
 >>> worker.addFunction('letter', 'v1', compute_letter)
+
 ```
 
 Create a place to store the results:
 
 ```python
->>> from garden.storage import InMemoryStore
+>>> from garden.local import InMemoryStore
 >>> store = InMemoryStore()
+
 ```
 
 Create a `Gardener` to coordinate work for the `Worker`:
@@ -79,6 +83,7 @@ Create a `Gardener` to coordinate work for the `Worker`:
 >>> from garden.local import LocalWorkDispatcher
 >>> dispatcher = LocalWorkDispatcher(worker)
 >>> gardener = Gardener(garden, store, dispatcher, accept_all_lineages=True)
+
 ```
 
 Now give the `Gardener` some data about Frodo's progress in the class (the last
@@ -87,6 +92,7 @@ arg is a JSON string):
 ```python
 >>> gardener.inputReceived('Frodo', 'assignments', 'v1', '"0.5"')
 >>> gardener.inputReceived('Frodo', 'exams', 'v1', '"0.9"')
+
 ```
 
 And see that the grade was computed:
@@ -96,6 +102,7 @@ And see that the grade was computed:
 [('Frodo', 'percent', 'v1', ..., '"0.74"')]
 >>> store.get('Frodo', 'letter', 'v1')
 [('Frodo', 'letter', 'v1', ..., '"B"')]
+
 ```
 
 Are you kidding me?
@@ -141,6 +148,7 @@ Add the new function spec to the `Garden`, with a distinct version:
 >>> garden.addPath('letter', 'v2', args=[
 ...     ('percent', 'v1'),
 ... ])
+
 ```
 
 Tell the worker about the new function:
