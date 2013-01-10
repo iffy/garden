@@ -1,4 +1,5 @@
 from twisted.trial.unittest import TestCase
+from twisted.internet import defer
 
 
 from garden.local import LocalWorkDispatcher, LocalWorker, InMemoryStore
@@ -37,13 +38,14 @@ class InMemoryStoreTest(TestCase):
         return InMemoryStore()
 
 
+    @defer.inlineCallbacks
     def test_get(self):
         """
         Should get values previously stored
         """
         store = self.getInstance()
-        store.put('entity', 'name', 'version', 'lineage', 'value')
-        r = store.get('entity', 'name', 'version')
+        yield store.put('entity', 'name', 'version', 'lineage', 'value')
+        r = yield store.get('entity', 'name', 'version')
         self.assertEqual(r, [('entity', 'name', 'version', 'lineage', 'value')])
 
 
