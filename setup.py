@@ -13,6 +13,6 @@ setup(
 #        'twisted.plugins',
     ],
     install_requires=[
-        'Twisted>=12.0.0',
+        'Twisted>=12.3.0',
     ],
 )

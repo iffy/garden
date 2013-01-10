@@ -44,7 +44,7 @@ This code adds a path for `'percent'` that depends on
 strings for now -- they will be important later):
 
 ```python
->>> from garden.garden import Garden
+>>> from garden.path import Garden
 >>> garden = Garden()
 >>> garden.addPath('percent', 'v1', inputs=[
 ...     ('assignments', 'v1'),
@@ -98,9 +98,9 @@ arg is a JSON string):
 And see that the grade was computed:
 
 ```python
->>> store.get('Frodo', 'percent', 'v1')
+>>> store.get('Frodo', 'percent', 'v1').result
 [('Frodo', 'percent', 'v1', ..., '"0.74"')]
->>> store.get('Frodo', 'letter', 'v1')
+>>> store.get('Frodo', 'letter', 'v1').result
 [('Frodo', 'letter', 'v1', ..., '"B"')]
 
 ```
@@ -169,9 +169,9 @@ Compute the function for all students (only Frodo's data has been added):
 And see that Frodo now has two `'letter'` values:
 
 ```python
->>> store.get('Frodo', 'letter', 'v1')
+>>> store.get('Frodo', 'letter', 'v1').result
 [('Frodo', 'letter', 'v1', ..., '"B"')]
->>> store.get('Frodo', 'letter', 'v2')
+>>> store.get('Frodo', 'letter', 'v2').result
 [('Frodo', 'letter', 'v2', ..., '"C"')]
 
 ```
@@ -209,9 +209,9 @@ and tell the `worker` about it as before.  We also indicate that both
 As you may expect, Frodo now has two versions of `'percent'`:
 
 ```python
->>> store.get('Frodo', 'percent', 'v1')
+>>> store.get('Frodo', 'percent', 'v1').result
 [('Frodo', 'percent', 'v1', ..., '"0.74"')]
->>> store.get('Frodo', 'percent', 'v2')
+>>> store.get('Frodo', 'percent', 'v2').result
 [('Frodo', 'percent', 'v2', ..., '"0.80"')]
 
 ```
@@ -219,9 +219,9 @@ As you may expect, Frodo now has two versions of `'percent'`:
 And Frodo now has **four** versions of `'letter'`:
 
 ```python
->>> store.get('Frodo', 'letter', 'v1')
+>>> store.get('Frodo', 'letter', 'v1').result
 [('Frodo', 'letter', 'v1', ..., '"A"'), ('Frodo', 'letter', 'v1', ..., '"B"')]
->>> store.get('Frodo', 'letter', 'v2')
+>>> store.get('Frodo', 'letter', 'v2').result
 [('Frodo', 'letter', 'v2', ..., '"C"'), ('Frodo', 'letter', 'v2', ..., '"D"')]
 
 ```

@@ -2,7 +2,7 @@ from twisted.trial.unittest import TestCase
 from hashlib import sha1
 
 
-from garden.garden import Garden, linealHash
+from garden.path import Garden, linealHash
 
 
 class GardenTest(TestCase):

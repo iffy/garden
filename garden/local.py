@@ -1,3 +1,7 @@
+from twisted.internet import defer
+
+
+
 class LocalWorkDispatcher(object):
     """
     I dispatch work to local workers.
@@ -36,10 +40,12 @@ class InMemoryStore(object):
 
 
     def get(self, entity, name, version):
-        return [x for x in self._data if x[:3] == (entity, name, version)]            
+        r = [x for x in self._data if x[:3] == (entity, name, version)]
+        return defer.succeed(r)
 
 
     def put(self, entity, name, version, lineage, value):
         self._data.append((entity, name, version, lineage, value))
+        return defer.succeed({'changed': True})
 
 

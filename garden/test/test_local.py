@@ -44,8 +44,12 @@ class InMemoryStoreTest(TestCase):
         Should get values previously stored
         """
         store = self.getInstance()
-        yield store.put('entity', 'name', 'version', 'lineage', 'value')
+        r = yield store.put('entity', 'name', 'version', 'lineage', 'value')
+        self.assertEqual({'changed': True}, r)
+        
         r = yield store.get('entity', 'name', 'version')
-        self.assertEqual(r, [('entity', 'name', 'version', 'lineage', 'value')])
+        self.assertEqual([
+            ('entity', 'name', 'version', 'lineage', 'value'),
+        ], r)
 
 
