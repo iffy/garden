@@ -1,4 +1,50 @@
 from collections import defaultdict
+from hashlib import sha1
+
+
+
+def linealHash(name, version, input_hashes=None):
+    """
+    Compute a hash to describe the lineage of a particular garden destination.
+    
+    @param name: Destination name
+    @param version: Destination version
+    
+    @param input_hashes: If the data point identified by the C{name}, C{version}
+        pair is a destination of a garden path, then C{input_hashes} is the
+        list of lineal hashes of the garden path's inputs.  For instance, if
+        this garden path was defined::
+        
+            garden.addPath('cake', '1', [
+                ('eggs', '1'),
+                ('flour', '1'),
+            ])
+        
+        And both C{('eggs', '1')} and C{('flour', '1')} do not require any
+        inputs, then to compute the lineal hash of C{('cake', '1')}, do this::
+        
+            linealHash('cake', '1', [
+                linealHash('eggs', '1'),
+                linealHash('flour', '1'),
+            ])
+        
+        If C{('flour', '1')} required input C{('wheat', '1')} then you would
+        instead do this::
+        
+            linealHash('cake', '1', [
+                linealHash('eggs', '1'),
+                linealHash('flour', '1', [
+                    linealHash('wheat', '1'),
+                ]),
+            ])
+    """
+    basic = sha1(sha1(name).hexdigest() + version).hexdigest()
+    if not input_hashes:
+        return basic
+    
+    # destination has inputs
+    parts = [basic] + input_hashes
+    return sha1(''.join(parts)).hexdigest()
 
 
 
