@@ -8,6 +8,6 @@ python:
 
 install:
   - python setup.py install
-  - pip install Twisted --use-mirrors
+  - pip install Twisted pyflakes mock --use-mirrors
 
-script: trial garden
+script: bash testeverything.sh

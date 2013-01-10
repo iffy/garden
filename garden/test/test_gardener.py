@@ -120,7 +120,7 @@ class GardenerTest(TestCase):
         g = Gardener(garden, store, None, accept_all_lineages=True)
         g.doPossibleWork = create_autospec(g.doPossibleWork,
                                side_effect=(lambda *x: defer.succeed('hey')))
-        r = g.dataReceived('Frog', 'eggs', '1', 'bbbb', 'flour value')
+        g.dataReceived('Frog', 'eggs', '1', 'bbbb', 'flour value')
         
         self.assertEqual(g.doPossibleWork.call_count, 0, "Should not have "
                          "started doing work before the data is stored")
