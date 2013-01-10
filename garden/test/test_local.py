@@ -35,3 +35,15 @@ class InMemoryStoreTest(TestCase):
 
     def getInstance(self):
         return InMemoryStore()
+
+
+    def test_get(self):
+        """
+        Should get values previously stored
+        """
+        store = self.getInstance()
+        store.put('entity', 'name', 'version', 'lineage', 'value')
+        r = store.get('entity', 'name', 'version')
+        self.assertEqual(r, [('entity', 'name', 'version', 'lineage', 'value')])
+
+

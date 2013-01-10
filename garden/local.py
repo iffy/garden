@@ -29,3 +29,17 @@ class InMemoryStore(object):
     """
     I hold entity data in memory.
     """
+
+
+    def __init__(self):
+        self._data = []
+
+
+    def get(self, entity, name, version):
+        return [x for x in self._data if x[:3] == (entity, name, version)]            
+
+
+    def put(self, entity, name, version, lineage, value):
+        self._data.append((entity, name, version, lineage, value))
+
+

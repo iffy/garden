@@ -140,12 +140,13 @@ test our fix before we replace the buggy function.  Here's our fixed function:
 ...         return 'D'
 ...     else:
 ...         return 'F'
+
 ```
 
 Add the new function spec to the `Garden`, with a distinct version:
 
 ```python
->>> garden.addPath('letter', 'v2', args=[
+>>> garden.addPath('letter', 'v2', inputs=[
 ...     ('percent', 'v1'),
 ... ])
 
@@ -155,12 +156,14 @@ Tell the worker about the new function:
 
 ```python
 >>> worker.addFunction('letter', 'v2', compute_letter_v2)
+
 ```
 
 Compute the function for all students (only Frodo's data has been added):
 
 ```python
 >>> gardener.forceCompute('letter', 'v2')
+
 ```
 
 And see that Frodo now has two `'letter'` values:
@@ -170,6 +173,7 @@ And see that Frodo now has two `'letter'` values:
 [('Frodo', 'letter', 'v1', ..., '"B"')]
 >>> store.get('Frodo', 'letter', 'v2')
 [('Frodo', 'letter', 'v2', ..., '"C"')]
+
 ```
 
 More Versions
@@ -187,19 +191,19 @@ and tell the `worker` about it as before.  We also indicate that both
 ...    exams = D(exams)
 ...    return (D('0.1') * assignments) + (D('0.9') * exams)
 ...
->>> garden.addPath('percent', 'v2', args=[
+>>> garden.addPath('percent', 'v2', inputs=[
 ...     ('assignments', 'v1'),
 ...     ('exams', 'v1'),
 ... ])
->>> garden.addPath('letter', 'v1', args=[
+>>> garden.addPath('letter', 'v1', inputs=[
 ...     ('percent', 'v2'),
 ... ])
->>> garden.addPath('letter', 'v2', args=[
+>>> garden.addPath('letter', 'v2', inputs=[
 ...     ('percent', 'v2'),
 ... ])
->>> garden.addPath('letter', 'v1
 >>> worker.addFunction('percent', 'v2', compute_percent_v2)
 >>> gardener.forceCompute('percent', 'v2')
+
 ```
 
 As you may expect, Frodo now has two versions of `'percent'`:
@@ -209,6 +213,7 @@ As you may expect, Frodo now has two versions of `'percent'`:
 [('Frodo', 'percent', 'v1', ..., '"0.74"')]
 >>> store.get('Frodo', 'percent', 'v2')
 [('Frodo', 'percent', 'v2', ..., '"0.80"')]
+
 ```
 
 And Frodo now has **four** versions of `'letter'`:
@@ -218,6 +223,7 @@ And Frodo now has **four** versions of `'letter'`:
 [('Frodo', 'letter', 'v1', ..., '"A"'), ('Frodo', 'letter', 'v1', ..., '"B"')]
 >>> store.get('Frodo', 'letter', 'v2')
 [('Frodo', 'letter', 'v2', ..., '"C"'), ('Frodo', 'letter', 'v2', ..., '"D"')]
+
 ```
 
 Confused?  Enlightened?
