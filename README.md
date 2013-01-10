@@ -224,9 +224,9 @@ And Frodo now has **four** versions of `'letter'`:
 
 ```python
 >>> store.get('Frodo', 'letter', 'v1').result
-[('Frodo', 'letter', 'v1', ... 'A'), ('Frodo', 'letter', 'v1', ... 'B')]
+[('Frodo', 'letter', 'v1', ... 'B'), ('Frodo', 'letter', 'v1', ... 'B')]
 >>> store.get('Frodo', 'letter', 'v2').result
-[('Frodo', 'letter', 'v2', ... 'C'), ('Frodo', 'letter', 'v2', ... 'D')]
+[('Frodo', 'letter', 'v2', ... 'C'), ('Frodo', 'letter', 'v2', ... 'B')]
 
 ```
 
