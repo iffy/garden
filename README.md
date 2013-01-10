@@ -20,7 +20,7 @@ You are a teacher, and want to compute students' grades.  Assignments are worth
 >>> def compute_percent(assignments, exams):
 ...    assignments = D(assignments)
 ...    exams = D(exams)
-...    return (D('0.4') * assignments) + (D('0.6') * exams)
+...    return str((D('0.4') * assignments) + (D('0.6') * exams))
 ...
 >>> def compute_letter(percent):
 ...     percent = D(percent)
@@ -87,14 +87,13 @@ Create a `Gardener` to coordinate work for the `Worker`:
 
 ```
 
-Now give the `Gardener` some data about Frodo's progress in the class (the last
-arg is a JSON string):
+Now give the `Gardener` some data about Frodo's progress in the class:
 
 ```python
->>> gardener.inputReceived('Frodo', 'assignments', 'v1', '"0.5"').result
+>>> gardener.inputReceived('Frodo', 'assignments', 'v1', '0.5').result
 []
->>> gardener.inputReceived('Frodo', 'exams', 'v1', '"0.9"').result
-[]
+>>> gardener.inputReceived('Frodo', 'exams', 'v1', '0.9').result
+[True]
 
 ```
 
@@ -102,9 +101,9 @@ And see that the grade was computed:
 
 ```python
 >>> store.get('Frodo', 'percent', 'v1').result
-[('Frodo', 'percent', 'v1', ..., '"0.74"')]
+[('Frodo', 'percent', 'v1', ... '0.74')]
 >>> store.get('Frodo', 'letter', 'v1').result
-[('Frodo', 'letter', 'v1', ..., '"B"')]
+[('Frodo', 'letter', 'v1', ... 'B')]
 
 ```
 
@@ -162,10 +161,11 @@ Tell the worker about the new function:
 
 ```
 
-Compute the function for all students (only Frodo's data has been added):
+Compute the result:
 
 ```python
->>> gardener.forceCompute('letter', 'v2')
+>>> gardener.doPossibleWork('Frodo', 'letter', 'v2').result
+[True]
 
 ```
 
@@ -173,9 +173,9 @@ And see that Frodo now has two `'letter'` values:
 
 ```python
 >>> store.get('Frodo', 'letter', 'v1').result
-[('Frodo', 'letter', 'v1', ..., '"B"')]
+[('Frodo', 'letter', 'v1', ... 'B')]
 >>> store.get('Frodo', 'letter', 'v2').result
-[('Frodo', 'letter', 'v2', ..., '"C"')]
+[('Frodo', 'letter', 'v2', ... 'C')]
 
 ```
 
@@ -192,7 +192,7 @@ and tell the `worker` about it as before.  We also indicate that both
 >>> def compute_percent_v2(assignments, exams):
 ...    assignments = D(assignments)
 ...    exams = D(exams)
-...    return (D('0.1') * assignments) + (D('0.9') * exams)
+...    return str((D('0.1') * assignments) + (D('0.9') * exams))
 ...
 >>> garden.addPath('percent', 'v2', inputs=[
 ...     ('assignments', 'v1'),
@@ -205,7 +205,8 @@ and tell the `worker` about it as before.  We also indicate that both
 ...     ('percent', 'v2'),
 ... ])
 >>> worker.addFunction('percent', 'v2', compute_percent_v2)
->>> gardener.forceCompute('percent', 'v2')
+>>> gardener.doPossibleWork('Frodo', 'percent', 'v2').result
+[True]
 
 ```
 
@@ -213,9 +214,9 @@ As you may expect, Frodo now has two versions of `'percent'`:
 
 ```python
 >>> store.get('Frodo', 'percent', 'v1').result
-[('Frodo', 'percent', 'v1', ..., '"0.74"')]
+[('Frodo', 'percent', 'v1', ... '0.74')]
 >>> store.get('Frodo', 'percent', 'v2').result
-[('Frodo', 'percent', 'v2', ..., '"0.80"')]
+[('Frodo', 'percent', 'v2', ... '0.86')]
 
 ```
 
@@ -223,9 +224,9 @@ And Frodo now has **four** versions of `'letter'`:
 
 ```python
 >>> store.get('Frodo', 'letter', 'v1').result
-[('Frodo', 'letter', 'v1', ..., '"A"'), ('Frodo', 'letter', 'v1', ..., '"B"')]
+[('Frodo', 'letter', 'v1', ... 'A'), ('Frodo', 'letter', 'v1', ... 'B')]
 >>> store.get('Frodo', 'letter', 'v2').result
-[('Frodo', 'letter', 'v2', ..., '"C"'), ('Frodo', 'letter', 'v2', ..., '"D"')]
+[('Frodo', 'letter', 'v2', ... 'C'), ('Frodo', 'letter', 'v2', ... 'D')]
 
 ```
 

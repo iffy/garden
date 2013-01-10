@@ -36,7 +36,7 @@ class Gardener(object):
         @param value: Value of data
         """
         lineal_hash = linealHash(name, version)
-        return self.dataReceived(entity, name, version, lineal_hash, 'value')
+        return self.dataReceived(entity, name, version, lineal_hash, value)
 
 
     def workReceived(self, entity, name, version, lineage, value, inputs,

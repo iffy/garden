@@ -29,15 +29,18 @@ class LocalWorkDispatcherTest(TestCase):
         d = LocalWorkDispatcher(worker)
         receiver = Mock()
         d.sendResultsTo(receiver)
-        r = d('entity', 'cake', '1', 'aaaa', [], ['hashes'])
+        r = d('entity', 'cake', '1', 'aaaa', [
+            ('entity', 'arg', '1', 'bbbb', 'val'),
+        ], ['hashes'])
         self.assertEqual(self.successResultOf(r), True, "Should immediately "
                          "fire with success, even though the worker isn't done")
         
-        worker.run.assert_called_with('cake', '1', [])
+        worker.run.assert_called_with('cake', '1',
+            [('entity', 'arg', '1', 'bbbb', 'val')])
         
         ret.callback('result')
         receiver.assert_called_once_with('entity', 'cake', '1', 'aaaa',
-                                         'result', [], ['hashes'])
+            'result', [('entity', 'arg', '1', 'bbbb', 'val')], ['hashes'])
 
 
 
@@ -62,7 +65,7 @@ class LocalWorkerTest(TestCase):
         def foo(a):
             return 'something ' + a
         w.addFunction('foo', 'v1', foo)
-        r = w.run('foo', 'v1', ['cool'])
+        r = w.run('foo', 'v1', [('Sam', 'arg', '1', 'bbbb', 'cool')])
         self.assertEqual(self.successResultOf(r), 'something cool')
 
 
@@ -88,4 +91,19 @@ class InMemoryStoreTest(TestCase):
             ('entity', 'name', 'version', 'lineage', 'value'),
         ], r)
 
+
+    @defer.inlineCallbacks
+    def test_overwrite(self):
+        """
+        You can only have one value of the same entity, name, version and
+        lineage.
+        """
+        store = self.getInstance()
+        r = yield store.put('entity', 'name', 'version', 'lineage', 'value')
+        r = yield store.put('entity', 'name', 'version', 'lineage', 'val2')
+        r = yield store.get('entity', 'name', 'version')
+        self.assertEqual([
+            ('entity', 'name', 'version', 'lineage', 'val2'),
+        ], r)
+        
 

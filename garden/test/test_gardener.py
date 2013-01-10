@@ -35,10 +35,10 @@ class GardenerTest(TestCase):
         ret = defer.Deferred()
         g.dataReceived = create_autospec(g.dataReceived, return_value=ret)
         
-        r = g.inputReceived('joe', 'name', 'version', 'value')
+        r = g.inputReceived('joe', 'name', 'version', 'zoom')
         g.dataReceived.assert_called_once_with('joe', 'name', 'version',
                                                linealHash('name', 'version'),
-                                               'value')        
+                                               'zoom')        
         ret.callback('foo')
         self.assertEqual(self.successResultOf(r), 'foo')
 

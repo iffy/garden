@@ -54,7 +54,7 @@ class LocalWorker(object):
         XXX
         """
         func = self._functions[(name, version)]
-        return defer.succeed(func(*args))
+        return defer.succeed(func(*[x[4] for x in args]))
 
 
 
@@ -65,16 +65,16 @@ class InMemoryStore(object):
 
 
     def __init__(self):
-        self._data = []
+        self._data = {}
 
 
     def get(self, entity, name, version):
-        r = [x for x in self._data if x[:3] == (entity, name, version)]
-        return defer.succeed(r)
+        keys = [x for x in self._data if x[:3] == (entity, name, version)]
+        return defer.succeed([k + (self._data[k],) for k in keys])
 
 
     def put(self, entity, name, version, lineage, value):
-        self._data.append((entity, name, version, lineage, value))
+        self._data[(entity, name, version, lineage)] = value
         return defer.succeed({'changed': True})
 
 
