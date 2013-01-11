@@ -3,7 +3,7 @@ from twisted.internet import defer
 
 from zope.interface.verify import verifyClass, verifyObject
 
-from mock import create_autospec, Mock, call
+from mock import create_autospec, call
 from hashlib import sha1
 
 from garden.interface import IGardener

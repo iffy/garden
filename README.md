@@ -61,10 +61,10 @@ Get a `Worker` ready to do the computations by telling it which functions
 correspond to which pieces of data:
 
 ```python
->>> from garden.local import LocalWorker
->>> worker = LocalWorker()
->>> worker.addFunction('percent', 'v1', compute_percent)
->>> worker.addFunction('letter', 'v1', compute_letter)
+>>> from garden.worker import BlockingWorker
+>>> worker = BlockingWorker()
+>>> worker.registerFunction('percent', 'v1', compute_percent)
+>>> worker.registerFunction('letter', 'v1', compute_letter)
 
 ```
 
@@ -76,24 +76,43 @@ Create a place to store the results:
 
 ```
 
+Create a thing to transport work between the `Gardener` and `BlockingWorker`:
+
+```python
+>>> from garden.local import LocalDispatcher
+>>> dispatcher = LocalDispatcher(worker)
+
+```
+
+Tell the worker where to send his work results:
+
+```python
+>>> worker.sender = dispatcher
+
+```
+
 Create a `Gardener` to coordinate work for the `Worker`:
 
 ```python
 >>> from garden.gardener import Gardener
->>> from garden.local import LocalWorkDispatcher
->>> dispatcher = LocalWorkDispatcher(worker)
 >>> gardener = Gardener(garden, store, dispatcher, accept_all_lineages=True)
->>> dispatcher.sendResultsTo(gardener.workReceived)
+
+```
+
+Tell the dispatcher where to send results:
+
+```python
+>>> dispatcher.gardener = gardener
 
 ```
 
 Now give the `Gardener` some data about Frodo's progress in the class:
 
 ```python
->>> gardener.inputReceived('Frodo', 'assignments', 'v1', '0.5').result
-[]
->>> gardener.inputReceived('Frodo', 'exams', 'v1', '0.9').result
-[True]
+>>> gardener.inputReceived('Frodo', 'assignments', 'v1', '0.5')
+<Deferred...>
+>>> gardener.inputReceived('Frodo', 'exams', 'v1', '0.9')
+<Deferred...>
 
 ```
 
@@ -157,15 +176,15 @@ Add the new function spec to the `Garden`, with a distinct version:
 Tell the worker about the new function:
 
 ```python
->>> worker.addFunction('letter', 'v2', compute_letter_v2)
+>>> worker.registerFunction('letter', 'v2', compute_letter_v2)
 
 ```
 
 Compute the result:
 
 ```python
->>> gardener.doPossibleWork('Frodo', 'letter', 'v2').result
-[True]
+>>> gardener.doPossibleWork('Frodo', 'letter', 'v2')
+<Deferred...>
 
 ```
 
@@ -204,9 +223,9 @@ and tell the `worker` about it as before.  We also indicate that both
 >>> garden.addPath('letter', 'v2', inputs=[
 ...     ('percent', 'v2'),
 ... ])
->>> worker.addFunction('percent', 'v2', compute_percent_v2)
->>> gardener.doPossibleWork('Frodo', 'percent', 'v2').result
-[True]
+>>> worker.registerFunction('percent', 'v2', compute_percent_v2)
+>>> gardener.doPossibleWork('Frodo', 'percent', 'v2')
+<Deferred...>
 
 ```
 

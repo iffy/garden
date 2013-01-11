@@ -3,8 +3,6 @@ from twisted.internet import defer
 
 from zope.interface.verify import verifyClass, verifyObject
 
-from mock import create_autospec, Mock
-
 from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
                               IResultReceiver)
 from garden.local import LocalDispatcher, InMemoryStore
