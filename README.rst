@@ -1,6 +1,6 @@
 .. image:: https://travis-ci.org/iffy/garden.png
 
-`Builds <http://travis-ci.org/iffy/garden>`_
+`Builds <http://travis-ci.org/iffy/garden>`_ | `Docs <https://garden.readthedocs.org>`_
 
 
 Garden
