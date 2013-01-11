@@ -1,5 +1,3 @@
-from twisted.internet import defer
-
 from zope.interface import implements
 
 from garden.interface import IWorker
