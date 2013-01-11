@@ -1,72 +1,109 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 
+from zope.interface.verify import verifyClass, verifyObject
+
 from mock import create_autospec, Mock
 
-from garden.local import LocalWorkDispatcher, LocalWorker, InMemoryStore
+from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
+                              IResultReceiver)
+from garden.local import LocalDispatcher, InMemoryStore
+from garden.test.fake import FakeWorker, FakeGardener
 
 
-class LocalWorkDispatcherTest(TestCase):
+
+class LocalDispatcherTest(TestCase):
+
+
+    def test_IWorkSender(self):
+        verifyClass(IWorkSender, LocalDispatcher)
+        verifyObject(IWorkSender, LocalDispatcher('foo'))
+
+
+    def test_IWorkReceiver(self):
+        verifyClass(IWorkReceiver, LocalDispatcher)
+        verifyObject(IWorkReceiver, LocalDispatcher('foo'))
+
+
+    def test_IResultSender(self):
+        verifyClass(IResultSender, LocalDispatcher)
+        verifyObject(IResultSender, LocalDispatcher('foo'))
+
+
+    def test_IResultReceiver(self):
+        verifyClass(IResultReceiver, LocalDispatcher)
+        verifyObject(IResultReceiver, LocalDispatcher('foo'))
 
 
     def test_init(self):
         """
-        You can give it a worker to use.
+        You can give it a worker to use
         """
-        d = LocalWorkDispatcher('worker')
-        self.assertEqual(d.worker, 'worker')
+        worker = FakeWorker()
+        d = LocalDispatcher(worker)
+        self.assertEqual(d.worker, worker)
+        self.assertEqual(d.gardener, None)
 
 
-    def test_callable(self):
+    def test_sendWork(self):
         """
-        You can dispatch to the dispatcher, and results will end up in the
-        result receiver
+        Giving L{LocalDispatcher} work will result in the worker being given
+        the work.
         """
-        worker = LocalWorker()
+        worker = FakeWorker()
         ret = defer.Deferred()
-        worker.run = create_autospec(worker.run, return_value=ret)
-        
-        d = LocalWorkDispatcher(worker)
-        receiver = Mock()
-        d.sendResultsTo(receiver)
-        r = d('entity', 'cake', '1', 'aaaa', [
-            ('entity', 'arg', '1', 'bbbb', 'val'),
-        ], ['hashes'])
-        self.assertEqual(self.successResultOf(r), True, "Should immediately "
-                         "fire with success, even though the worker isn't done")
-        
-        worker.run.assert_called_with('cake', '1',
-            [('entity', 'arg', '1', 'bbbb', 'val')])
-        
+        worker.doWork.mock.side_effect = lambda *x: ret
+
+        d = LocalDispatcher(worker)
+        r = d.sendWork('entity', 'cake', '1', 'aaaa', [
+            ('arg', '1', 'bbbb', 'val', 'hash'),
+        ])
+        self.assertFalse(r.called, "Should not be done until the worker says "
+                         "he got the value")
         ret.callback('result')
-        receiver.assert_called_once_with('entity', 'cake', '1', 'aaaa',
-            'result', [('entity', 'arg', '1', 'bbbb', 'val')], ['hashes'])
+        self.assertEqual(self.successResultOf(r), 'result')
 
 
-
-class LocalWorkerTest(TestCase):
-
-
-    def test_addFunction(self):
+    def test_sendError(self):
         """
-        You can add python functions to a worker
+        Sending an error, will result in the Gardener getting the value
         """
-        w = LocalWorker()
-        def foo():
-            pass
-        w.addFunction('foo', 'v1', foo)
+        gardener = FakeGardener()
+        d = LocalDispatcher(None)
+        d.gardener = gardener
+        
+        ret = defer.Deferred()
+        gardener.workErrorReceived.mock.side_effect = lambda *x: ret
+        
+        r = d.sendError('entity', 'cake', '1', 'aaaa', 'oven exploded', [])
+        gardener.workErrorReceived.assert_called_once_with('entity', 'cake',
+            '1', 'aaaa', 'oven exploded', [])
+        self.assertFalse(r.called, "Should not be done until the other side "
+                         "acknowledges receipt")
+
+        ret.callback('foo')
+        self.assertEqual(self.successResultOf(r), 'foo')
 
 
-    def test_run(self):
+    def test_sendResult(self):
         """
-        You can run a function
+        Sending a result, will result in the Gardener getting the value
         """
-        w = LocalWorker()
-        def foo(a):
-            return 'something ' + a
-        w.addFunction('foo', 'v1', foo)
-        r = w.run('foo', 'v1', [('Sam', 'arg', '1', 'bbbb', 'cool')])
-        self.assertEqual(self.successResultOf(r), 'something cool')
+        gardener = FakeGardener()
+        d = LocalDispatcher(None)
+        d.gardener = gardener
+        
+        ret = defer.Deferred()
+        gardener.workReceived.mock.side_effect = lambda *x: ret
+        
+        r = d.sendResult('entity', 'cake', '1', 'aaaa', 'delicious', [])
+        gardener.workReceived.assert_called_once_with('entity', 'cake',
+            '1', 'aaaa', 'delicious', [])
+        self.assertFalse(r.called, "Should not be done until the other side "
+                         "acknowledges receipt")
+
+        ret.callback('foo')
+        self.assertEqual(self.successResultOf(r), 'foo')
 
 
 
