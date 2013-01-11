@@ -1,15 +1,12 @@
-.. Garden documentation master file, created by
-   sphinx-quickstart on Fri Jan 11 08:47:39 2013.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Garden
+===============================================================================
 
-Welcome to Garden's documentation!
-==================================
 
-Contents:
+.. image:: _static/process-diagram.svg
 
-.. toctree::
-   :maxdepth: 2
+
+In the above diagram, blue boxes indicate objects responsible for transporting
+data.  White boxes indicate things that do stuff to or with the data.
 
 
 
