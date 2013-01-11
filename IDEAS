@@ -6,7 +6,6 @@ from flamingo import func1, func2
 worker.addFunction('func1', '1', func1)
 worker.addFunction('func2', '1', func2)
 
-
 # to hook the worker up to RabbitMQ
 # twistd garden worker --module flamingo.worker --in rabbitmq:10.1.2.3:1234 --out rabbitmq:10.1.2.3:1234
 
