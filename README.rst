@@ -1,6 +1,6 @@
-.. raw:: html
+.. image:: https://travis-ci.org/iffy/garden.png
 
-    <a href="http://travis-ci.org/iffy/garden" target="_blank"><img src="https://travis-ci.org/iffy/garden.png"></a>
+`Builds <http://travis-ci.org/iffy/garden>`_
 
 
 Garden
