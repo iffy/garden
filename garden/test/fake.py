@@ -9,7 +9,7 @@ from twisted.internet import defer
 
 from mock import create_autospec
 
-from garden.interface import IResultSender, IWorkSender, IWorker
+from garden.interface import IResultSender, IWorkSender, IWorker, IGardener
 
 
 
@@ -74,3 +74,32 @@ class FakeWorker(_SpeccedMock):
 
     def doWork(self, entity, name, version, lineage, inputs):
         pass
+
+
+
+class FakeGardener(_SpeccedMock):
+
+
+    implements(IGardener)
+    
+    faked_methods = [
+        ('inputReceived', lambda *x: defer.succeed('done')),
+        ('workReceived', lambda *x: defer.succeed('done')),
+    ]
+    
+    
+    work_sender = None
+    
+    
+    def inputReceived(self, entity, name, version, value):
+        pass
+
+
+    def workReceived(self, entity, name, version, lineage, value, inputs):
+        pass
+
+
+
+
+
+

@@ -2,8 +2,9 @@ from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyClass, verifyObject
 
 
-from garden.interface import IResultSender, IWorkSender, IWorker
-from garden.test.fake import FakeResultSender, FakeWorkSender, FakeWorker
+from garden.interface import IResultSender, IWorkSender, IWorker, IGardener
+from garden.test.fake import (FakeResultSender, FakeWorkSender, FakeWorker,
+                              FakeGardener)
 
 
 
@@ -89,3 +90,35 @@ class FakeWorkerTest(TestCase):
         ])
 
 
+
+
+class FakeGardenerTest(TestCase):
+
+
+    def test_IGardener(self):
+        verifyClass(IGardener, FakeGardener)
+        verifyObject(IGardener, FakeGardener())
+
+
+    def test_inputReceived(self):
+        """
+        By default, succeed immediately
+        """
+        f = FakeGardener()
+        r = f.inputReceived('Jim', 'name', 'version', 'value')
+        self.assertTrue(r.called, "Should call back immediately")
+        f.inputReceived.assert_called_once_with('Jim', 'name', 'version',
+                                                'value')
+
+
+    def test_workReceived(self):
+        """
+        Succeed immediately, by default.
+        """
+        f = FakeGardener()
+        r = f.workReceived('Jim', 'name', 'version', 'aaaa', 'value', [
+            ('name', 'version', 'bbbb', 'hash'),
+        ])
+        self.assertTrue(r.called, "Should call back immediately")
+        f.workReceived.assert_called_once_with('Jim', 'name', 'version', 'aaaa',
+            'value', [('name', 'version', 'bbbb', 'hash')])
