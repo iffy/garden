@@ -2,8 +2,8 @@ from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyClass, verifyObject
 
 
-from garden.interface import IResultSender
-from garden.test.fake import FakeResultSender
+from garden.interface import IResultSender, IWorkSender
+from garden.test.fake import FakeResultSender, FakeWorkSender
 
 
 
@@ -24,7 +24,7 @@ class FakeResultSenderTest(TestCase):
             ('arg1', 'v1', 'bbbb', 'arg1hash'),
         ])
         self.assertTrue(r.called, "Should call back immediately")
-        f.sendError.assert_called_with('Yip', 'n', 'v', 'aaaa', 'error', [
+        f.sendError.assert_called_once_with('Yip', 'n', 'v', 'aaaa', 'error', [
             ('arg1', 'v1', 'bbbb', 'arg1hash'),
         ])
 
@@ -38,6 +38,29 @@ class FakeResultSenderTest(TestCase):
             ('arg1', 'v1', 'bbbb', 'arg1hash'),
         ])
         self.assertTrue(r.called, "Should call back immediately")
-        f.sendResult.assert_called_with('Yip', 'n', 'v', 'aaaa', 'value', [
+        f.sendResult.assert_called_once_with('Yip', 'n', 'v', 'aaaa', 'value', [
             ('arg1', 'v1', 'bbbb', 'arg1hash'),
+        ])
+
+
+
+class FakeWorkSenderTest(TestCase):
+
+
+    def test_IWorkSender(self):
+        verifyClass(IWorkSender, FakeWorkSender)
+        verifyObject(IWorkSender, FakeWorkSender())
+
+
+    def test_sendWork(self):
+        """
+        Should succeed immediately by default
+        """
+        f = FakeWorkSender()
+        r = f.sendWork('Guy', 'name', 'version', 'aaaa', [
+            ('name', 'version', 'bbbb', 'val', 'hash'),
+        ])
+        self.assertTrue(r.called, "Should call back immediately")
+        f.sendWork.assert_called_once_with('Guy', 'name', 'version', 'aaaa', [
+            ('name', 'version', 'bbbb', 'val', 'hash'),
         ])
