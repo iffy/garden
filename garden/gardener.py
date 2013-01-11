@@ -1,7 +1,11 @@
 from twisted.internet import defer
+
+from zope.interface import implements
+
 from hashlib import sha1
 from itertools import product
 
+from garden.interface import IGardener
 from garden.path import linealHash
 
 
@@ -9,13 +13,21 @@ from garden.path import linealHash
 class Gardener(object):
     """
     I coordinate work based on new data.
+    
+    @ivar work_sender: The L{IWorkSender} instance responsible for sending work
+        to workers.
     """
     
+    implements(IGardener)
     
-    def __init__(self, garden, store, dispatcher, accept_all_lineages=False):
+    
+    work_sender = None
+    
+    
+    def __init__(self, garden, store, work_sender, accept_all_lineages=False):
         self.garden = garden
         self.store = store
-        self.dispatcher = dispatcher
+        self.work_sender = work_sender
         self.accept_all_lineages = accept_all_lineages
 
 
@@ -39,12 +51,18 @@ class Gardener(object):
         return self.dataReceived(entity, name, version, lineal_hash, value)
 
 
-    def workReceived(self, entity, name, version, lineage, value, inputs,
-                     input_hashes):
+    def workReceived(self, entity, name, version, lineage, value, inputs):
         """
         XXX
         """
         return self.dataReceived(entity, name, version, lineage, value)
+
+
+    def workErrorReceived(self, entity, name, version, lineage, error, inputs):
+        """
+        XXX I ignore things silently.  This ought not be.
+        """
+        return defer.succeed(True)
 
 
     def dataReceived(self, entity, name, version, lineage, value):
@@ -115,7 +133,8 @@ class Gardener(object):
         """
         XXX
         """
-        hashes = [sha1(x[4]).hexdigest() for x in values]
-        return self.dispatcher(entity, name, version, lineage, values, hashes)
+        values = [x[1:] + (sha1(x[4]).hexdigest(),) for x in values]
+        return self.work_sender.sendWork(entity, name, version, lineage,
+                                         values)
 
 

@@ -1,26 +1,35 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 
+from zope.interface.verify import verifyClass, verifyObject
+
 from mock import create_autospec, Mock, call
 from hashlib import sha1
 
+from garden.interface import IGardener
 from garden.local import InMemoryStore
 from garden.path import Garden, linealHash
 from garden.gardener import Gardener
+from garden.test.fake import FakeWorkSender
 
 
 
 class GardenerTest(TestCase):
 
 
+    def test_IGardener(self):
+        verifyClass(IGardener, Gardener)
+        verifyObject(IGardener, Gardener(None, None, None))
+
+
     def test_init(self):
         """
         You can initialize with some things a Gardener needs.
         """
-        g = Gardener('garden', 'store', 'dispatcher', accept_all_lineages=True)
+        g = Gardener('garden', 'store', 'work_sender', accept_all_lineages=True)
         self.assertEqual(g.garden, 'garden')
         self.assertEqual(g.store, 'store')
-        self.assertEqual(g.dispatcher, 'dispatcher')
+        self.assertEqual(g.work_sender, 'work_sender')
         self.assertEqual(g.accept_all_lineages, True)
 
 
@@ -29,7 +38,7 @@ class GardenerTest(TestCase):
         When input is received, it should compute the lineage and call
         dataReceived.
         """
-        g = Gardener(Garden(), 'store', 'dispatcher', accept_all_lineages=True)
+        g = Gardener(Garden(), 'store', 'work_sender', accept_all_lineages=True)
         
         # fake out dataReceived, which is tested separately
         ret = defer.Deferred()
@@ -56,17 +65,27 @@ class GardenerTest(TestCase):
             ('water', '1'),
         ])
         
-        g = Gardener(garden, store, 'dispatcher', accept_all_lineages=True)
+        g = Gardener(garden, store, 'work_sender', accept_all_lineages=True)
         
         ret = defer.succeed('done')
         g.dataReceived = create_autospec(g.dataReceived, return_value=ret)
         
-        r = g.workReceived('Toad', 'ice', '1', 'bbbb', 'the result',
-                           [('Toad', 'water', '1', 'aaaa', 'wet')],
-                           [sha1('wet').hexdigest()])
+        r = g.workReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
+            ('Toad', 'water', '1', 'aaaa', sha1('wet').hexdigest()),
+        ])
         g.dataReceived.assert_called_once_with('Toad', 'ice', '1', 'bbbb',
                                                'the result')
         self.assertEqual(self.successResultOf(r), 'done')
+
+
+    def test_workErrorReceived(self):
+        """
+        For now, drop the error silently on the floor.
+        """
+        g = Gardener(None, None, None)
+        r = g.workErrorReceived('Atticus', 'verdict', '2', 'aaaa', 'objection',
+                                [])
+        self.assertTrue(r.called, "Errors are silently ignored right now")
 
 
     def test_dataReceived(self):
@@ -133,23 +152,23 @@ class GardenerTest(TestCase):
         Dispatching a single function call through this function will result
         in the hashes being added to the function.
         """
+        sender = FakeWorkSender()
         ret = defer.Deferred()
-        dispatch = Mock(return_value=ret)
+        sender.sendWork.mock.side_effect = lambda *x: ret
         
-        g = Gardener(None, None, dispatch)
+        g = Gardener(None, None, sender)
         r = g.dispatchSinglePieceOfWork('Bob', 'name', 'version', 'aaaa', [
             ('Bob', 'arg1', '1', 'aaaa', 'arg1 value'),
             ('Bob', 'arg2', '1', 'bbbb', 'arg2 value'),
         ])
         
-        dispatch.assert_called_once_with('Bob', 'name', 'version', 'aaaa', [
-                ('Bob', 'arg1', '1', 'aaaa', 'arg1 value'),
-                ('Bob', 'arg2', '1', 'bbbb', 'arg2 value'),
-            ], [
-                sha1('arg1 value').hexdigest(),
-                sha1('arg2 value').hexdigest(),
-        ])
-        
+        sender.sendWork.assert_called_once_with(
+            'Bob', 'name', 'version', 'aaaa', [
+            ('arg1', '1', 'aaaa', 'arg1 value', sha1('arg1 value').hexdigest()),
+            ('arg2', '1', 'bbbb', 'arg2 value', sha1('arg2 value').hexdigest()),
+            ]
+        )
+                
         ret.callback('foo')
         self.assertEqual(self.successResultOf(r), 'foo')
 
