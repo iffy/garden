@@ -85,6 +85,7 @@ class FakeGardener(_SpeccedMock):
     faked_methods = [
         ('inputReceived', lambda *x: defer.succeed('done')),
         ('workReceived', lambda *x: defer.succeed('done')),
+        ('workErrorReceived', lambda *x: defer.succeed('done')),
     ]
     
     
@@ -96,6 +97,10 @@ class FakeGardener(_SpeccedMock):
 
 
     def workReceived(self, entity, name, version, lineage, value, inputs):
+        pass
+
+
+    def workErrorReceived(self, entity, name, version, lineage, error, inputs):
         pass
 
 

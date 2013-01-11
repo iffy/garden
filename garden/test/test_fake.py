@@ -122,3 +122,16 @@ class FakeGardenerTest(TestCase):
         self.assertTrue(r.called, "Should call back immediately")
         f.workReceived.assert_called_once_with('Jim', 'name', 'version', 'aaaa',
             'value', [('name', 'version', 'bbbb', 'hash')])
+
+
+    def test_workErrorReceived(self):
+        """
+        Succeed immediately, by default.
+        """
+        f = FakeGardener()
+        r = f.workErrorReceived('Jim', 'name', 'version', 'aaaa', 'ERRR', [
+            ('name', 'version', 'bbbb', 'hash'),
+        ])
+        self.assertTrue(r.called, "Should call back immediately")
+        f.workErrorReceived.assert_called_once_with('Jim', 'name', 'version',
+            'aaaa', 'ERRR', [('name', 'version', 'bbbb', 'hash')])
