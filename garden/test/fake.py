@@ -2,14 +2,14 @@
 A collection of verified fakes for testing.
 """
 
-__all__ = ['FakeResultSender', 'FakeWorkSender']
+__all__ = ['FakeResultSender', 'FakeWorkSender', 'FakeWorker']
 
 from zope.interface import implements
 from twisted.internet import defer
 
 from mock import create_autospec
 
-from garden.interface import IResultSender, IWorkSender
+from garden.interface import IResultSender, IWorkSender, IWorker
 
 
 
@@ -50,10 +50,27 @@ class FakeWorkSender(_SpeccedMock):
 
     implements(IWorkSender)
     
-    
     faked_methods = [
         ('sendWork', lambda *x: defer.succeed('sent')),
     ]
-    
+
+
     def sendWork(self, entity, name, version, lineage, inputs):
+        pass
+
+
+
+class FakeWorker(_SpeccedMock):
+
+
+    implements(IWorker)
+    
+    faked_methods = [
+        ('doWork', lambda *x: defer.succeed('done')),
+    ]
+
+
+    sender = None
+
+    def doWork(self, entity, name, version, lineage, inputs):
         pass

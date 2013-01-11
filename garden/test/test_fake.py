@@ -2,8 +2,8 @@ from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyClass, verifyObject
 
 
-from garden.interface import IResultSender, IWorkSender
-from garden.test.fake import FakeResultSender, FakeWorkSender
+from garden.interface import IResultSender, IWorkSender, IWorker
+from garden.test.fake import FakeResultSender, FakeWorkSender, FakeWorker
 
 
 
@@ -64,3 +64,28 @@ class FakeWorkSenderTest(TestCase):
         f.sendWork.assert_called_once_with('Guy', 'name', 'version', 'aaaa', [
             ('name', 'version', 'bbbb', 'val', 'hash'),
         ])
+
+
+
+class FakeWorkerTest(TestCase):
+
+
+    def test_IWorker(self):
+        verifyClass(IWorker, FakeWorker)
+        verifyObject(IWorker, FakeWorker())
+
+
+    def test_doWork(self):
+        """
+        Should succeed immediately by default
+        """
+        f = FakeWorker()
+        r = f.doWork('Guy', 'name', 'version', 'aaaa', [
+            ('name', 'version', 'bbbb', 'val', 'hash'),
+        ])
+        self.assertTrue(r.called, "Should call back immediately")
+        f.doWork.assert_called_once_with('Guy', 'name', 'version', 'aaaa', [
+            ('name', 'version', 'bbbb', 'val', 'hash'),
+        ])
+
+
