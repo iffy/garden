@@ -2,10 +2,9 @@ from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 from zope.interface.verify import verifyClass, verifyObject
 
-from mock import Mock
-
 from garden.interface import IWorker
 from garden.worker import BlockingWorker
+from garden.test.fake import FakeResultSender
 
 
 
@@ -22,9 +21,9 @@ class BlockingWorkerTest(TestCase):
         The worker should be able to do work
         """
         w = BlockingWorker()
-        w.sender = Mock()
+        w.sender = FakeResultSender()
         send_result = defer.Deferred()
-        w.sender.sendResult = Mock(return_value=send_result)
+        w.sender.sendResult.side_effect = lambda *a: send_result
         
         def foo(a, b):
             return a + b
