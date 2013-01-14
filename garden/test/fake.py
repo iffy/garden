@@ -2,14 +2,15 @@
 A collection of verified fakes for testing.
 """
 
-__all__ = ['FakeResultSender', 'FakeWorkSender', 'FakeWorker']
+__all__ = ['FakeResultReceiver', 'FakeWorkReceiver', 'FakeWorker',
+           'FakeGardener']
 
 from zope.interface import implements
 from twisted.internet import defer
 
 from mock import create_autospec
 
-from garden.interface import IResultSender, IWorkSender, IWorker, IGardener
+from garden.interface import IResultReceiver, IWorkReceiver, IWorker, IGardener
 
 
 
@@ -24,38 +25,38 @@ class _SpeccedMock(object):
 
 
 
-class FakeResultSender(_SpeccedMock):
+class FakeResultReceiver(_SpeccedMock):
     
     
-    implements(IResultSender)
+    implements(IResultReceiver)
     
     
     faked_methods = [
-        ('sendError', lambda *x: defer.succeed('sent')),
-        ('sendResult', lambda *x: defer.succeed('sent')),
+        ('resultErrorReceived', lambda *x: defer.succeed('received')),
+        ('resultReceived', lambda *x: defer.succeed('received')),
     ]
 
 
-    def sendError(self, entity, name, version, lineage, error, inputs):
+    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
         pass
 
 
-    def sendResult(self, entity, name, version, lineage, value, inputs):
+    def resultReceived(self, entity, name, version, lineage, value, inputs):
         pass
 
 
 
-class FakeWorkSender(_SpeccedMock):
+class FakeWorkReceiver(_SpeccedMock):
 
 
-    implements(IWorkSender)
+    implements(IWorkReceiver)
     
     faked_methods = [
-        ('sendWork', lambda *x: defer.succeed('sent')),
+        ('workReceived', lambda *x: defer.succeed('sent')),
     ]
 
 
-    def sendWork(self, entity, name, version, lineage, inputs):
+    def workReceived(self, entity, name, version, lineage, inputs):
         pass
 
 
@@ -66,14 +67,18 @@ class FakeWorker(_SpeccedMock):
     implements(IWorker)
     
     faked_methods = [
-        ('doWork', lambda *x: defer.succeed('done')),
+        ('workReceived', lambda *x: defer.succeed('received')),
     ]
+    
+    result_receiver = None
 
 
-    sender = None
-
-    def doWork(self, entity, name, version, lineage, inputs):
+    def workReceived(self, entity, name, version, lineage, inputs):
         pass
+
+
+    def setResultReceiver(self, receiver):
+        self.result_receiver = receiver
 
 
 
@@ -84,24 +89,28 @@ class FakeGardener(_SpeccedMock):
     
     faked_methods = [
         ('inputReceived', lambda *x: defer.succeed('done')),
-        ('workReceived', lambda *x: defer.succeed('done')),
-        ('workErrorReceived', lambda *x: defer.succeed('done')),
+        ('resultReceived', lambda *x: defer.succeed('done')),
+        ('resultErrorReceived', lambda *x: defer.succeed('done')),
     ]
     
     
-    work_sender = None
+    work_receiver = None
     
     
     def inputReceived(self, entity, name, version, value):
         pass
 
 
-    def workReceived(self, entity, name, version, lineage, value, inputs):
+    def resultReceived(self, entity, name, version, lineage, value, inputs):
         pass
 
 
-    def workErrorReceived(self, entity, name, version, lineage, error, inputs):
+    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
         pass
+
+
+    def setWorkReceiver(self, receiver):
+        self.work_receiver = receiver
 
 
 

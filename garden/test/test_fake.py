@@ -2,67 +2,69 @@ from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyClass, verifyObject
 
 
-from garden.interface import IResultSender, IWorkSender, IWorker, IGardener
-from garden.test.fake import (FakeResultSender, FakeWorkSender, FakeWorker,
+from garden.interface import IResultReceiver, IWorkReceiver, IWorker, IGardener
+from garden.test.fake import (FakeResultReceiver, FakeWorkReceiver, FakeWorker,
                               FakeGardener)
 
 
 
-class FakeResultSenderTest(TestCase):
+class FakeResultReceiverTest(TestCase):
 
 
-    def test_IResultSender(self):
-        verifyClass(IResultSender, FakeResultSender)
-        verifyObject(IResultSender, FakeResultSender())
+    def test_IResultReceiver(self):
+        verifyClass(IResultReceiver, FakeResultReceiver)
+        verifyObject(IResultReceiver, FakeResultReceiver())
 
 
-    def test_sendError(self):
+    def test_resultErrorReceived(self):
         """
-        By default, sending succeeds immediately.
+        By default, succeeds immediately.
         """
-        f = FakeResultSender()
-        r = f.sendError('Yip', 'n', 'v', 'aaaa', 'error', [
+        f = FakeResultReceiver()
+        r = f.resultErrorReceived('Yip', 'n', 'v', 'aaaa', 'error', [
             ('arg1', 'v1', 'bbbb', 'arg1hash'),
         ])
         self.assertTrue(r.called, "Should call back immediately")
-        f.sendError.assert_called_once_with('Yip', 'n', 'v', 'aaaa', 'error', [
-            ('arg1', 'v1', 'bbbb', 'arg1hash'),
-        ])
+        f.resultErrorReceived.assert_called_once_with('Yip', 'n', 'v', 'aaaa',
+            'error', [
+                ('arg1', 'v1', 'bbbb', 'arg1hash'),
+            ])
 
 
-    def test_sendResult(self):
+    def test_resultReceived(self):
         """
-        By default sending succeeds immediately.
+        By default, receives immediately
         """
-        f = FakeResultSender()
-        r = f.sendResult('Yip', 'n', 'v', 'aaaa', 'value', [
+        f = FakeResultReceiver()
+        r = f.resultReceived('Yip', 'n', 'v', 'aaaa', 'value', [
             ('arg1', 'v1', 'bbbb', 'arg1hash'),
         ])
         self.assertTrue(r.called, "Should call back immediately")
-        f.sendResult.assert_called_once_with('Yip', 'n', 'v', 'aaaa', 'value', [
-            ('arg1', 'v1', 'bbbb', 'arg1hash'),
-        ])
+        f.resultReceived.assert_called_once_with('Yip', 'n', 'v', 'aaaa',
+            'value', [
+                ('arg1', 'v1', 'bbbb', 'arg1hash'),
+            ])
 
 
 
-class FakeWorkSenderTest(TestCase):
+class FakeWorkReceiverTest(TestCase):
 
 
-    def test_IWorkSender(self):
-        verifyClass(IWorkSender, FakeWorkSender)
-        verifyObject(IWorkSender, FakeWorkSender())
+    def test_IWorkReceiver(self):
+        verifyClass(IWorkReceiver, FakeWorkReceiver)
+        verifyObject(IWorkReceiver, FakeWorkReceiver())
 
 
-    def test_sendWork(self):
+    def test_workReceived(self):
         """
         Should succeed immediately by default
         """
-        f = FakeWorkSender()
-        r = f.sendWork('Guy', 'name', 'version', 'aaaa', [
+        f = FakeWorkReceiver()
+        r = f.workReceived('Guy', 'name', 'v1', 'aaaa', [
             ('name', 'version', 'bbbb', 'val', 'hash'),
         ])
         self.assertTrue(r.called, "Should call back immediately")
-        f.sendWork.assert_called_once_with('Guy', 'name', 'version', 'aaaa', [
+        f.workReceived.assert_called_once_with('Guy', 'name', 'v1', 'aaaa', [
             ('name', 'version', 'bbbb', 'val', 'hash'),
         ])
 
@@ -76,18 +78,29 @@ class FakeWorkerTest(TestCase):
         verifyObject(IWorker, FakeWorker())
 
 
-    def test_doWork(self):
+    def test_workReceived(self):
         """
         Should succeed immediately by default
         """
         f = FakeWorker()
-        r = f.doWork('Guy', 'name', 'version', 'aaaa', [
+        r = f.workReceived('Guy', 'name', 'version', 'aaaa', [
             ('name', 'version', 'bbbb', 'val', 'hash'),
         ])
         self.assertTrue(r.called, "Should call back immediately")
-        f.doWork.assert_called_once_with('Guy', 'name', 'version', 'aaaa', [
-            ('name', 'version', 'bbbb', 'val', 'hash'),
-        ])
+        f.workReceived.assert_called_once_with('Guy', 'name', 'version',
+            'aaaa', [
+                ('name', 'version', 'bbbb', 'val', 'hash'),
+            ])
+
+
+    def test_setResultReceiver(self):
+        """
+        Should set the result_receiver
+        """
+        f = FakeWorker()
+        self.assertEqual(f.result_receiver, None)
+        f.setResultReceiver('foo')
+        self.assertEqual(f.result_receiver, 'foo')
 
 
 
@@ -111,27 +124,40 @@ class FakeGardenerTest(TestCase):
                                                 'value')
 
 
-    def test_workReceived(self):
+    def test_resultReceived(self):
         """
         Succeed immediately, by default.
         """
         f = FakeGardener()
-        r = f.workReceived('Jim', 'name', 'version', 'aaaa', 'value', [
+        r = f.resultReceived('Jim', 'name', 'version', 'aaaa', 'value', [
             ('name', 'version', 'bbbb', 'hash'),
         ])
         self.assertTrue(r.called, "Should call back immediately")
-        f.workReceived.assert_called_once_with('Jim', 'name', 'version', 'aaaa',
-            'value', [('name', 'version', 'bbbb', 'hash')])
+        f.resultReceived.assert_called_once_with('Jim', 'name', 'version',
+            'aaaa', 'value', [('name', 'version', 'bbbb', 'hash')])
 
 
-    def test_workErrorReceived(self):
+    def test_resultErrorReceived(self):
         """
         Succeed immediately, by default.
         """
         f = FakeGardener()
-        r = f.workErrorReceived('Jim', 'name', 'version', 'aaaa', 'ERRR', [
+        r = f.resultErrorReceived('Jim', 'name', 'version', 'aaaa', 'ERRR', [
             ('name', 'version', 'bbbb', 'hash'),
         ])
         self.assertTrue(r.called, "Should call back immediately")
-        f.workErrorReceived.assert_called_once_with('Jim', 'name', 'version',
+        f.resultErrorReceived.assert_called_once_with('Jim', 'name', 'version',
             'aaaa', 'ERRR', [('name', 'version', 'bbbb', 'hash')])
+
+
+    def test_setWorkReceiver(self):
+        """
+        Should set the work_receiver
+        """
+        f = FakeGardener()
+        self.assertEqual(f.work_receiver, None)
+        f.setWorkReceiver('foo')
+        self.assertEqual(f.work_receiver, 'foo')
+
+
+

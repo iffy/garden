@@ -51,7 +51,7 @@ class IResultSource(Interface):
 class IResultReceiver(Interface):
 
 
-    def workReceived(entity, name, version, lineage, value, inputs):
+    def resultReceived(entity, name, version, lineage, value, inputs):
         """
         Called when a work result is received.
         
@@ -82,7 +82,7 @@ class IResultReceiver(Interface):
         """
 
 
-    def workErrorReceived(entity, name, version, lineage, error, inputs):
+    def resultErrorReceived(entity, name, version, lineage, error, inputs):
         """
         Called to report an error that happened while doing some work.
 
@@ -157,5 +157,16 @@ class IWorkReceiver(Interface):
             If the work is not successfully received, the C{Deferred} should
             errback.
         """
+
+
+
+class IWorker(IWorkReceiver, IResultSource):
+    pass
+
+
+
+class IGardener(IResultReceiver, IInputReceiver, IWorkSource):
+    pass
+
 
 
