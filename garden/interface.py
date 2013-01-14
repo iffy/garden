@@ -5,6 +5,11 @@ from zope.interface import Interface, Attribute
 class IInputSource(Interface):
 
 
+    input_receiver = Attribute("""
+        L{IInputReceiver} set by L{setInputReceiver}
+        """)
+
+
     def setInputReceiver(receiver):
         """
         Choose the L{IInputReceiver} to receive input from this source.
@@ -39,6 +44,11 @@ class IInputReceiver(Interface):
 
 
 class IResultSource(Interface):
+
+
+    result_receiver = Attribute("""
+        L{IResultReceiver} set by L{setResultReceiver}
+        """)
 
 
     def setResultReceiver(receiver):
@@ -115,6 +125,11 @@ class IResultReceiver(Interface):
 
 
 class IWorkSource(Interface):
+
+
+    work_receiver = Attribute("""
+        L{IWorkReceiver} set by L{setWorkReceiver}
+        """)
 
 
     def setWorkReceiver(receiver):

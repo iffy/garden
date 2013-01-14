@@ -11,7 +11,7 @@ class BlockingWorker(object):
     
     implements(IWorker)
     
-    sender = None
+    result_receiver = None
     
     
     def __init__(self):
@@ -30,7 +30,7 @@ class BlockingWorker(object):
         self._functions[(name, version)] = func
 
 
-    def doWork(self, entity, name, version, lineage, inputs):
+    def workReceived(self, entity, name, version, lineage, inputs):
         """
         XXX
         """
@@ -38,5 +38,12 @@ class BlockingWorker(object):
         args = [x[3] for x in inputs]
         result = func(*args)
         value_stripped_inputs = [x[:3] + (x[4],) for x in inputs]
-        return self.sender.sendResult(entity, name, version, lineage, result,
-                               value_stripped_inputs)
+        return self.result_receiver.resultReceived(entity, name, version,
+            lineage, result, value_stripped_inputs)
+
+
+    def setResultReceiver(self, receiver):
+        """
+        XXX
+        """
+        self.result_receiver = receiver
