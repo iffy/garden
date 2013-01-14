@@ -3,10 +3,16 @@ AMP clients and servers
 """
 
 from twisted.protocols import amp
-from twisted.internet import defer
+from twisted.internet import defer, protocol
 from zope.interface import implements
 
 from garden.interface import IWorkSender, IWorkReceiver, IResultSender
+from garden.util import RoundRobinChooser
+
+
+
+class NoWorkerAvailable(Exception):
+    pass
 
 
 
@@ -22,7 +28,11 @@ class DoWork(amp.Command):
     response = []
 
 
-class WorkSender(amp.AMP):
+
+class WorkSenderProtocol(amp.AMP):
+    """
+    XXX
+    """
     
     
     implements(IWorkSender)
@@ -34,8 +44,53 @@ class WorkSender(amp.AMP):
                                inputs=[list(x) for x in inputs])
 
 
+    def connectionMade(self):
+        amp.AMP.connectionMade(self)
+        self.factory._protocolConnected(self)
+
+
+    def connectionLost(self, reason):
+        self.factory._protocolDisconnected(self)
+        amp.AMP.connectionLost(self, reason)
+
+
+
+class WorkSender(protocol.Factory):
+    """
+    XXX
+    """
+    
+    implements(IWorkSender)
+    
+    protocol = WorkSenderProtocol
+
+
+    def __init__(self):
+        self.proto_chooser = RoundRobinChooser()
+        self.connected_protocols = []
+
+
+    def _protocolConnected(self, proto):
+        self.proto_chooser.add(proto)
+
+
+    def _protocolDisconnected(self, proto):
+        self.proto_chooser.remove(proto)
+
+
+    def sendWork(self, entity, name, version, lineage, inputs):
+        try:
+            proto = self.proto_chooser.next()
+        except:
+            return defer.fail(NoWorkerAvailable('something'))
+        return proto.sendWork(entity, name, version, lineage, inputs)
+
+
 
 class WorkReceiver(amp.AMP):
+    """
+    XXX
+    """
 
 
     implements(IWorkReceiver)

@@ -1,5 +1,6 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
+from twisted.internet.protocol import Factory, connectionDone
 from twisted.protocols import amp
 from zope.interface.verify import verifyClass, verifyObject
 
@@ -10,8 +11,10 @@ from mock import create_autospec
 
 from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
                               IResultReceiver)
-from garden.amp import WorkSender, WorkReceiver, ResultSender, DoWork
-from garden.test.fake import FakeWorker
+from garden.amp import (WorkSender, WorkSenderProtocol, WorkReceiver,
+                        ResultSender, DoWork, NoWorkerAvailable)
+from garden.util import RoundRobinChooser
+from garden.test.fake import FakeWorker, FakeWorkSender
 
 
 
@@ -23,11 +26,81 @@ class WorkSenderTest(TestCase):
         verifyObject(IWorkSender, WorkSender())
 
 
+    def test_Factory(self):
+        """
+        Should use L{WorkSenderProtocol} by default and should be a factory
+        """
+        self.assertTrue(issubclass(WorkSender, Factory))
+        self.assertEqual(WorkSender.protocol, WorkSenderProtocol)
+
+
+    def test_connectedProtocols(self):
+        """
+        Should keep track of the protocols that are connected.
+        """
+        f = WorkSender()
+        ch = f.proto_chooser
+        self.assertTrue(isinstance(ch, RoundRobinChooser))
+        self.assertEqual(ch.options, [])
+        
+        ch.add = create_autospec(ch.add)
+        ch.remove = create_autospec(ch.remove)
+        
+        # should know about connection
+        p = f.buildProtocol('addr')
+        transport = StringTransport()
+        p.makeConnection(transport)
+        ch.add.assert_called_once_with(p)
+        
+        # should know about disconnection
+        r = transport.loseConnection()
+        p.connectionLost(connectionDone)
+        ch.remove.assert_called_once_with(p)
+
+
+    def test_sendWork(self):
+        """
+        Should send work to the next protocol
+        """
+        f = WorkSender()
+        
+        d1 = defer.Deferred()
+        
+        p1 = FakeWorkSender()
+        p1.sendWork.mock.side_effect = lambda *a: d1
+        
+        f.proto_chooser.add(p1)
+        f.proto_chooser.next = create_autospec(f.proto_chooser.next,
+                                return_value=p1)
+        
+        r = f.sendWork('Guy', 'bread', '1', 'aaaa', [])
+        p1.sendWork.assert_called_once_with('Guy', 'bread', '1', 'aaaa', [])
+        self.assertEqual(r, d1, "Should return the protocol's response")
+
+
+    def test_sendWork_noprotocols(self):
+        """
+        If there are no protocols ready to take work, errback
+        """
+        f = WorkSender()
+        r = f.sendWork('Foo', 'bread', '1', 'aaaa', [])
+        self.assertFailure(r, NoWorkerAvailable)
+
+
+
+class WorkSenderProtocolTest(TestCase):
+
+
+    def test_IWorkSender(self):
+        verifyClass(IWorkSender, WorkSenderProtocol)
+        verifyObject(IWorkSender, WorkSenderProtocol())
+
+
     def test_sendWork(self):
         """
         Sending work should call DoWork on the remote side
         """
-        sender = WorkSender()
+        sender = WorkSenderProtocol()
         
         ret = defer.Deferred()
         sender.callRemote = create_autospec(sender.callRemote, return_value=ret)
@@ -87,9 +160,11 @@ class FunctionalTest(TestCase):
 
     def test_work_send_receive(self):
         """
-        WorkSender and send to WorkReceiver and cause work to happen.
+        WorkSender can send to WorkReceiver and cause work to happen.
         """
-        sender = WorkSender()
+        sender_factory = WorkSender()
+        
+        sender = sender_factory.buildProtocol('foo')
         sender_transport = StringTransport()
         sender.makeConnection(sender_transport)
         
