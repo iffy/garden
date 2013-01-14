@@ -12,10 +12,10 @@ from mock import create_autospec
 from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
                               IResultReceiver)
 from garden.amp import (WorkSender, WorkSenderProtocol, WorkReceiver,
-                        ResultSender, DoWork, ReceiveResult,
-                        NoWorkerAvailable)
+                        ResultSender, ResultReceiver, DoWork, ReceiveResult,
+                        ReceiveError, NoWorkerAvailable)
 from garden.util import RoundRobinChooser
-from garden.test.fake import FakeWorker, FakeWorkSender
+from garden.test.fake import FakeWorker, FakeWorkSender, FakeGardener
 
 
 
@@ -198,6 +198,70 @@ class FunctionalTest(TestCase):
         self.assertTrue(r.called, "Done now")
 
 
+    def test_result_send_receive(self):
+        """
+        ResultSender can send to ResultReceiver
+        """
+        sender = ResultSender()
+        sender.makeConnection(StringTransport())
+        
+        receiver = ResultReceiver()
+        receiver.makeConnection(StringTransport())
+        
+        gardener = FakeGardener()
+        receiver.gardener = gardener
+        d = defer.Deferred()
+        receiver.gardener.workReceived.mock.side_effect = lambda *a: d
+        
+        r = sender.sendResult('Jim', 'apples', '12', 'bbbb', 'value', [
+                ['seed', '11', 'dddd', 'hash'],
+        ])
+        
+        receiver.dataReceived(sender.transport.value())
+        sender.dataReceived(receiver.transport.value())
+        self.assertFalse(r.called, "Not received yet: %r" % (r,))
+        
+        sender.transport.clear()
+        receiver.transport.clear()
+        d.callback('result')
+        
+        receiver.dataReceived(sender.transport.value())
+        sender.dataReceived(receiver.transport.value())
+        self.assertTrue(r.called, "Done now")
+
+
+    def test_error_send_receive(self):
+        """
+        ResultSender can send errors to ResultReceiver
+        """
+        sender = ResultSender()
+        sender.makeConnection(StringTransport())
+        
+        receiver = ResultReceiver()
+        receiver.makeConnection(StringTransport())
+        
+        gardener = FakeGardener()
+        receiver.gardener = gardener
+        d = defer.Deferred()
+        receiver.gardener.workErrorReceived.mock.side_effect = lambda *a: d
+        
+        r = sender.sendError('Jim', 'apples', '12', 'bbbb', 'err', [
+                ['seed', '11', 'dddd', 'hash'],
+        ])
+        
+        receiver.dataReceived(sender.transport.value())
+        sender.dataReceived(receiver.transport.value())
+        self.assertFalse(r.called, "Not received yet: %r" % (r,))
+        
+        sender.transport.clear()
+        receiver.transport.clear()
+        d.callback('result')
+        
+        receiver.dataReceived(sender.transport.value())
+        sender.dataReceived(receiver.transport.value())
+        self.assertTrue(r.called, "Done now")
+
+
 
 class ResultSenderTest(TestCase):
 
@@ -220,13 +284,12 @@ class ResultSenderTest(TestCase):
             ('eggs', '1', 'bbbb', 'hash'),
             ('flour', '1', 'cccc', 'hash2'),
         ])
-        sender.callRemote.assert_called_once_with(ReceiveResult,
+        sender.callRemote.assert_called_once_with(ReceiveError,
             entity='Chef',
             name='cake',
             version='1',
             lineage='aaaa',
-            value='error',
-            is_error=True,
+            error='error',
             inputs=[
                 ['eggs', '1', 'bbbb', 'hash'],
                 ['flour', '1', 'cccc', 'hash2'],
@@ -257,7 +320,6 @@ class ResultSenderTest(TestCase):
             version='1',
             lineage='aaaa',
             value='value',
-            is_error=False,
             inputs=[
                 ['eggs', '1', 'bbbb', 'hash'],
                 ['flour', '1', 'cccc', 'hash2'],
@@ -267,6 +329,72 @@ class ResultSenderTest(TestCase):
         
         ret.callback('foo')
         self.assertTrue(r.called, "Other side acknowledged receipt")
+
+
+
+class ResultReceiverTest(TestCase):
+
+
+    def test_IResultReceiver(self):
+        verifyClass(IResultReceiver, ResultReceiver)
+        verifyObject(IResultReceiver, ResultReceiver())
+
+
+    def test_receiveResult(self):
+        """
+        Just give the result to the Gardener.
+        """
+        d = defer.Deferred()
+        
+        gardener = FakeGardener()
+        gardener.workReceived.mock.side_effect = lambda *a: d
+        
+        receiver = ResultReceiver()
+        receiver.gardener = gardener
+        
+        r = receiver.receiveResult('Bob', 'donut', '1', 'bbbb', 'yummy', [
+            ['eggs', '1', 'bbbb', 'hash'],
+            ['grease', '2', 'cccc', 'hash'],
+        ])
+        
+        gardener.workReceived.assert_called_once_with('Bob', 'donut', '1',
+            'bbbb', 'yummy', [
+            ['eggs', '1', 'bbbb', 'hash'],
+            ['grease', '2', 'cccc', 'hash'],
+        ])
+        self.assertFalse(r.called)
+        d.callback('foo')
+        self.assertEqual(self.successResultOf(r), {})
+
+
+    def test_receiveError(self):
+        """
+        Just give the error to the Gardener.
+        """
+        d = defer.Deferred()
+        
+        gardener = FakeGardener()
+        gardener.workErrorReceived.mock.side_effect = lambda *a: d
+        
+        receiver = ResultReceiver()
+        receiver.gardener = gardener
+        
+        r = receiver.receiveError('Bob', 'donut', '1', 'bbbb', 'error', [
+            ['eggs', '1', 'bbbb', 'hash'],
+            ['grease', '2', 'cccc', 'hash'],
+        ])
+        
+        gardener.workErrorReceived.assert_called_once_with('Bob', 'donut', '1',
+            'bbbb', 'error', [
+            ['eggs', '1', 'bbbb', 'hash'],
+            ['grease', '2', 'cccc', 'hash'],
+        ])
+        self.assertFalse(r.called)
+        d.callback('foo')
+        self.assertEqual(self.successResultOf(r), {})
+        
+        
+        
 
         
 

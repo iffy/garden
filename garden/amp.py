@@ -6,7 +6,8 @@ from twisted.protocols import amp
 from twisted.internet import defer, protocol
 from zope.interface import implements
 
-from garden.interface import IWorkSender, IWorkReceiver, IResultSender
+from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
+                              IResultReceiver)
 from garden.util import RoundRobinChooser
 
 
@@ -31,7 +32,29 @@ class DoWork(amp.Command):
 
 class ReceiveResult(amp.Command):
 
-    pass
+    arguments = [
+        ('entity', amp.String()),
+        ('name', amp.String()),
+        ('version', amp.String()),
+        ('lineage', amp.String()),
+        ('value', amp.String()),
+        ('inputs', amp.ListOf(amp.ListOf(amp.String()))),
+    ]
+    response = []
+
+
+class ReceiveError(amp.Command):
+
+    arguments = [
+        ('entity', amp.String()),
+        ('name', amp.String()),
+        ('version', amp.String()),
+        ('lineage', amp.String()),
+        ('error', amp.String()),
+        ('inputs', amp.ListOf(amp.ListOf(amp.String()))),
+    ]
+    response = []
+
 
 
 
@@ -107,30 +130,30 @@ class WorkReceiver(amp.AMP):
 
     @DoWork.responder
     def receiveWork(self, entity, name, version, lineage, inputs):
+        """
+        XXX
+        """
         r = self.worker.doWork(entity, name, version, lineage, inputs)
         return r.addCallback(lambda x: {})
 
 
 
 class ResultSender(amp.AMP):
+    """
+    XXX
+    """
 
 
     implements(IResultSender)
-
-
-    def _sendResult(self, entity, name, version, lineage, value, inputs,
-                    is_error=False):
-        return self.callRemote(ReceiveResult, entity=entity, name=name,
-                        version=version, lineage=lineage, value=value,
-                        is_error=is_error,
-                        inputs=[list(x) for x in inputs])
 
 
     def sendResult(self, entity, name, version, lineage, value, inputs):
         """
         XXX
         """
-        return self._sendResult(entity, name, version, lineage, value, inputs)
+        return self.callRemote(ReceiveResult, entity=entity, name=name,
+                        version=version, lineage=lineage, value=value,
+                        inputs=[list(x) for x in inputs])
         
 
 
@@ -138,10 +161,41 @@ class ResultSender(amp.AMP):
         """
         XXX
         """
-        return self._sendResult(entity, name, version, lineage, error, inputs,
-                                is_error=True)
+        return self.callRemote(ReceiveError, entity=entity, name=name,
+                        version=version, lineage=lineage, error=error,
+                        inputs=[list(x) for x in inputs])
 
 
+
+class ResultReceiver(amp.AMP):
+    """
+    XXX
+    """
+    
+    
+    implements(IResultReceiver)
+
+    gardener = None
+
+
+    @ReceiveResult.responder
+    def receiveResult(self, entity, name, version, lineage, value, inputs):
+        """
+        XXX
+        """
+        r = self.gardener.workReceived(entity, name, version, lineage, value,
+                                       inputs)
+        return r.addCallback(lambda x: {})
+
+
+    @ReceiveError.responder
+    def receiveError(self, entity, name, version, lineage, error, inputs):
+        """
+        XXX
+        """
+        r = self.gardener.workErrorReceived(entity, name, version, lineage,
+                error, inputs)
+        return r.addCallback(lambda x: {})
 
 
 
