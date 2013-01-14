@@ -2,10 +2,17 @@ from zope.interface import Interface, Attribute
 
 
 
-class IGardener(Interface):
+class IInputSource(Interface):
 
 
-    work_sender = Attribute("""An L{IWorkSender} instance""")
+    def setInputReceiver(receiver):
+        """
+        Choose the L{IInputReceiver} to receive input from this source.
+        """
+
+
+
+class IInputReceiver(Interface):
 
 
     def inputReceived(entity, name, version, value):
@@ -28,6 +35,20 @@ class IGardener(Interface):
             Errback indicates the data was not received and should be sent
             again.
         """
+
+
+
+class IResultSource(Interface):
+
+
+    def setResultReceiver(receiver):
+        """
+        Choose the L{IResultReceiver} to receive results from this source.
+        """
+
+
+
+class IResultReceiver(Interface):
 
 
     def workReceived(entity, name, version, lineage, value, inputs):
@@ -92,26 +113,23 @@ class IGardener(Interface):
         """
 
 
-class IInputReceiver(Interface):
+
+class IWorkSource(Interface):
 
 
-    gardener = Attribute("""An L{IGardener} instance""")
-
-
-
-class IResultReceiver(Interface):
-
-
-    gardener = Attribute("""An L{IGardener} instance""")
-
-
-
-class IWorkSender(Interface):
-
-
-    def sendWork(entity, name, version, lineage, inputs):
+    def setWorkReceiver(receiver):
         """
-        Send a single unit of work through this sender.
+        Choose the L{IWorkReceiver} to receive the results from this source.
+        """
+
+
+
+class IWorkReceiver(Interface):
+
+
+    def workReceived(entity, name, version, lineage, inputs):
+        """
+        Receive a single piece of work.
         
         @type entity: str
         @param entity: Entity name
@@ -138,133 +156,6 @@ class IWorkSender(Interface):
             
             If the work is not successfully received, the C{Deferred} should
             errback.
-        """
-
-
-class IWorkReceiver(Interface):
-
-
-    worker = Attribute("""An L{IWorker} instance""")
-
-
-
-class IWorker(Interface):
-
-
-    sender = Attribute("""An L{IResultSender} instance""")
-
-
-    def doWork(entity, name, version, lineage, inputs):
-        """
-        Do the work necessary to get the value of the destination.
-        
-        @type entity: str
-        @param entity: Entity name
-        
-        @type name: str
-        @param name: Result destination name
-        
-        @type version: str
-        @param version: Result destination version
-        
-        @type lineage: str
-        @param lineage: Result destination lineal hash
-        
-        @type inputs: list
-        @param inputs: A list of input tuples needed to compute the destination.
-            Each item is a tuple of the form::
-            
-                (name, version, lineage, value, hash)
-
-        
-        @return: A C{Deferred} which calls back once it is
-            guaranteed that the result or resulting error will be passed to the
-            sender.  In other words, this may callback before the result is
-            computed.  The actual value of the callback is undefined.
-            
-            An errback indicates that this method should be called again (if
-            the error is transient) or indicates a bug that should be fixed.
-            In any case, if this errbacks, then the work B{WILL NOT} be
-            completed.
-        """
-
-
-
-class IResultSender(Interface):
-
-
-    def sendResult(entity, name, version, lineage, value, inputs):
-        """
-        Send a result.
-        
-        @type entity: str
-        @param entity: Entity name
-        
-        @type name: str
-        @param name: Result destination name
-        
-        @type version: str
-        @param version: Result destination version
-        
-        @type lineage: str
-        @param lineage: Result destination lineal hash
-        
-        @type value: str
-        @param value: Result value
-        
-        @type inputs: list
-        @param inputs: A list of input tuples used to compute the destination.
-            Each item is a tuple of the form::
-            
-                (name, version, lineage, hash)
-        
-        
-        @return: A C{Deferred} which calls back once it is guaranteed that the
-            result will arrive at the destination (at some point).
-            
-            For instance, this may callback before a remote destination receives
-            the result, but after this L{IResultSender} has persisted the
-            request to send to the hard disk.
-
-            If the result won't be delivered, this should errback to indicate
-            that it should be attempted again.
-        """
-
-
-    def sendError(entity, name, version, lineage, error, inputs):
-        """
-        Send an error result.
-
-        @type entity: str
-        @param entity: Entity name
-        
-        @type name: str
-        @param name: Result destination name
-        
-        @type version: str
-        @param version: Result destination version
-        
-        @type lineage: str
-        @param lineage: Result destination lineal hash
-        
-        @type error: str
-        @param error: Error message (could be a JSON string)
-        
-        @type inputs: list
-        @param inputs: A list of input tuples used to compute the destination.
-            Each item is a tuple of the form::
-            
-                (name, version, lineage, hash)
-        
-        @return: A C{Deferred} which calls back once it is guaranteed that the
-            error will arrive at the destination (at some point).
-            
-            For instance, this may callback before a remote destination receives
-            the error, but after this L{IResultSender} has persisted the
-            request to send to the hard disk.
-
-            If the error won't be delivered, this should errback to indicate
-            that it should be attempted again.
         """
 
 
