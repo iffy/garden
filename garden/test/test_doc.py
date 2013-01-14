@@ -13,7 +13,7 @@ class ReadmeTest(TestCase):
 
 
     def test_readme(self):
-        readme = FilePath(__file__).parent().parent().parent().child('README.md')
+        readme = FilePath(__file__).parent().parent().parent().child('README.rst')
         test = _doctest_parser.get_doctest(readme.getContent(), {},
                                            readme.basename(), readme.path, 0)
         output = []
