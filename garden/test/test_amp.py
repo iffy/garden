@@ -1,7 +1,6 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 from twisted.internet.protocol import Factory, connectionDone
-from twisted.protocols import amp
 from zope.interface.verify import verifyClass, verifyObject
 
 from twisted.test.proto_helpers import StringTransport
@@ -54,7 +53,7 @@ class WorkSenderTest(TestCase):
         ch.add.assert_called_once_with(p)
         
         # should know about disconnection
-        r = transport.loseConnection()
+        transport.loseConnection()
         p.connectionLost(connectionDone)
         ch.remove.assert_called_once_with(p)
 
