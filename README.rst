@@ -79,34 +79,16 @@ Create a place to store the results:
     >>> store = InMemoryStore()
 
 
-Create a thing to transport work between the ``Gardener`` and ``BlockingWorker``:
-
-.. code:: python
-
-    >>> from garden.local import LocalDispatcher
-    >>> dispatcher = LocalDispatcher(worker)
-
-
-Tell the worker where to send his work results:
-
-.. code:: python
-
-    >>> worker.sender = dispatcher
-
-
-Create a ``Gardener`` to coordinate work for the worker:
+Create a ``Gardener`` to coordinate work for the worker and tell them about
+each other:
 
 .. code:: python
 
     >>> from garden.gardener import Gardener
-    >>> gardener = Gardener(garden, store, dispatcher, accept_all_lineages=True)
+    >>> gardener = Gardener(garden, store, accept_all_lineages=True)
+    >>> gardener.setWorkReceiver(worker)
+    >>> worker.setResultReceiver(gardener)
 
-
-Tell the dispatcher where to send results:
-
-.. code:: python
-
-    >>> dispatcher.gardener = gardener
 
 Now give the ``Gardener`` some data about Frodo's progress in the class:
 
