@@ -29,6 +29,12 @@ class DoWork(amp.Command):
 
 
 
+class ReceiveResult(amp.Command):
+
+    pass
+
+
+
 class WorkSenderProtocol(amp.AMP):
     """
     XXX
@@ -110,6 +116,31 @@ class ResultSender(amp.AMP):
 
 
     implements(IResultSender)
+
+
+    def _sendResult(self, entity, name, version, lineage, value, inputs,
+                    is_error=False):
+        return self.callRemote(ReceiveResult, entity=entity, name=name,
+                        version=version, lineage=lineage, value=value,
+                        is_error=is_error,
+                        inputs=[list(x) for x in inputs])
+
+
+    def sendResult(self, entity, name, version, lineage, value, inputs):
+        """
+        XXX
+        """
+        return self._sendResult(entity, name, version, lineage, value, inputs)
+        
+
+
+    def sendError(self, entity, name, version, lineage, error, inputs):
+        """
+        XXX
+        """
+        return self._sendResult(entity, name, version, lineage, error, inputs,
+                                is_error=True)
+
 
 
 

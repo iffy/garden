@@ -12,7 +12,8 @@ from mock import create_autospec
 from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
                               IResultReceiver)
 from garden.amp import (WorkSender, WorkSenderProtocol, WorkReceiver,
-                        ResultSender, DoWork, NoWorkerAvailable)
+                        ResultSender, DoWork, ReceiveResult,
+                        NoWorkerAvailable)
 from garden.util import RoundRobinChooser
 from garden.test.fake import FakeWorker, FakeWorkSender
 
@@ -219,15 +220,47 @@ class ResultSenderTest(TestCase):
             ('eggs', '1', 'bbbb', 'hash'),
             ('flour', '1', 'cccc', 'hash2'),
         ])
-        sender.callRemote.assert_called_once_with(DoWork,
+        sender.callRemote.assert_called_once_with(ReceiveResult,
             entity='Chef',
             name='cake',
             version='1',
             lineage='aaaa',
-            error='error',
+            value='error',
+            is_error=True,
             inputs=[
-                ['eggs', '1', 'bbbb', 'foo', 'hash'],
-                ['flour', '1', 'cccc', 'bar', 'hash2'],
+                ['eggs', '1', 'bbbb', 'hash'],
+                ['flour', '1', 'cccc', 'hash2'],
+            ]
+        )
+        self.assertFalse(r.called, "Should not have called back yet")
+        
+        ret.callback('foo')
+        self.assertTrue(r.called, "Other side acknowledged receipt")
+
+
+    def test_sendResult(self):
+        """
+        sendResult should make a remote call
+        """
+        sender = ResultSender()
+        
+        ret = defer.Deferred()
+        sender.callRemote = create_autospec(sender.callRemote, return_value=ret)
+        
+        r = sender.sendResult('Chef', 'cake', '1', 'aaaa', 'value', [
+            ('eggs', '1', 'bbbb', 'hash'),
+            ('flour', '1', 'cccc', 'hash2'),
+        ])
+        sender.callRemote.assert_called_once_with(ReceiveResult,
+            entity='Chef',
+            name='cake',
+            version='1',
+            lineage='aaaa',
+            value='value',
+            is_error=False,
+            inputs=[
+                ['eggs', '1', 'bbbb', 'hash'],
+                ['flour', '1', 'cccc', 'hash2'],
             ]
         )
         self.assertFalse(r.called, "Should not have called back yet")
