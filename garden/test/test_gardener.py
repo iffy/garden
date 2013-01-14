@@ -10,7 +10,7 @@ from garden.interface import IGardener
 from garden.local import InMemoryStore
 from garden.path import Garden, linealHash
 from garden.gardener import Gardener
-from garden.test.fake import FakeWorkSender
+from garden.test.fake import FakeWorkReceiver
 
 
 
@@ -26,11 +26,20 @@ class GardenerTest(TestCase):
         """
         You can initialize with some things a Gardener needs.
         """
-        g = Gardener('garden', 'store', 'work_sender', accept_all_lineages=True)
+        g = Gardener('garden', 'store', accept_all_lineages=True)
         self.assertEqual(g.garden, 'garden')
         self.assertEqual(g.store, 'store')
-        self.assertEqual(g.work_sender, 'work_sender')
         self.assertEqual(g.accept_all_lineages, True)
+
+
+    def test_setWorkReceiver(self):
+        """
+        Should just set work_receiver
+        """
+        g = Gardener(None, None)
+        self.assertEqual(g.work_receiver, None)
+        g.setWorkReceiver('foo')
+        self.assertEqual(g.work_receiver, 'foo')
 
 
     def test_inputReceived(self):
@@ -38,7 +47,7 @@ class GardenerTest(TestCase):
         When input is received, it should compute the lineage and call
         dataReceived.
         """
-        g = Gardener(Garden(), 'store', 'work_sender', accept_all_lineages=True)
+        g = Gardener(Garden(), 'store', accept_all_lineages=True)
         
         # fake out dataReceived, which is tested separately
         ret = defer.Deferred()
@@ -52,7 +61,7 @@ class GardenerTest(TestCase):
         self.assertEqual(self.successResultOf(r), 'foo')
 
 
-    def test_workReceived(self):
+    def test_resultReceived(self):
         """
         When work is received, it should call dataReceived only if the input
         hashes match the current input hashes
@@ -65,12 +74,12 @@ class GardenerTest(TestCase):
             ('water', '1'),
         ])
         
-        g = Gardener(garden, store, 'work_sender', accept_all_lineages=True)
+        g = Gardener(garden, store, accept_all_lineages=True)
         
         ret = defer.succeed('done')
         g.dataReceived = create_autospec(g.dataReceived, return_value=ret)
         
-        r = g.workReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
+        r = g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
             ('Toad', 'water', '1', 'aaaa', sha1('wet').hexdigest()),
         ])
         g.dataReceived.assert_called_once_with('Toad', 'ice', '1', 'bbbb',
@@ -78,12 +87,12 @@ class GardenerTest(TestCase):
         self.assertEqual(self.successResultOf(r), 'done')
 
 
-    def test_workErrorReceived(self):
+    def test_resultErrorReceived(self):
         """
         For now, drop the error silently on the floor.
         """
         g = Gardener(None, None, None)
-        r = g.workErrorReceived('Atticus', 'verdict', '2', 'aaaa', 'objection',
+        r = g.resultErrorReceived('Atticus', 'verdict', '2', 'aaaa', 'objection',
                                 [])
         self.assertTrue(r.called, "Errors are silently ignored right now")
 
@@ -106,7 +115,7 @@ class GardenerTest(TestCase):
             ('flour', '1'),
         ])
         
-        g = Gardener(garden, store, None, accept_all_lineages=True)
+        g = Gardener(garden, store, accept_all_lineages=True)
         g.doPossibleWork = create_autospec(g.doPossibleWork,
                                side_effect=(lambda *x: defer.succeed(['hey'])))
         r = g.dataReceived('Frog', 'flour', '1', 'bbbb', 'flour value')
@@ -136,7 +145,7 @@ class GardenerTest(TestCase):
             ('eggs', '1'),
         ])
         
-        g = Gardener(garden, store, None, accept_all_lineages=True)
+        g = Gardener(garden, store, accept_all_lineages=True)
         g.doPossibleWork = create_autospec(g.doPossibleWork,
                                side_effect=(lambda *x: defer.succeed('hey')))
         g.dataReceived('Frog', 'eggs', '1', 'bbbb', 'flour value')
@@ -152,17 +161,18 @@ class GardenerTest(TestCase):
         Dispatching a single function call through this function will result
         in the hashes being added to the function.
         """
-        sender = FakeWorkSender()
+        sender = FakeWorkReceiver()
         ret = defer.Deferred()
-        sender.sendWork.mock.side_effect = lambda *x: ret
+        sender.workReceived.mock.side_effect = lambda *x: ret
         
-        g = Gardener(None, None, sender)
+        g = Gardener(None, None)
+        g.setWorkReceiver(sender)
         r = g.dispatchSinglePieceOfWork('Bob', 'name', 'version', 'aaaa', [
             ('Bob', 'arg1', '1', 'aaaa', 'arg1 value'),
             ('Bob', 'arg2', '1', 'bbbb', 'arg2 value'),
         ])
         
-        sender.sendWork.assert_called_once_with(
+        sender.workReceived.assert_called_once_with(
             'Bob', 'name', 'version', 'aaaa', [
             ('arg1', '1', 'aaaa', 'arg1 value', sha1('arg1 value').hexdigest()),
             ('arg2', '1', 'bbbb', 'arg2 value', sha1('arg2 value').hexdigest()),
@@ -190,7 +200,7 @@ class GardenerTest(TestCase):
         def returner(*args):
             return defer.succeed('hello?')
         
-        g = Gardener(garden, store, None, accept_all_lineages=True)
+        g = Gardener(garden, store, accept_all_lineages=True)
         g.dispatchSinglePieceOfWork = create_autospec(
             g.dispatchSinglePieceOfWork, side_effect=returner)
         

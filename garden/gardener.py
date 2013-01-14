@@ -21,14 +21,20 @@ class Gardener(object):
     implements(IGardener)
     
     
-    work_sender = None
+    work_receiver = None
     
     
-    def __init__(self, garden, store, work_sender, accept_all_lineages=False):
+    def __init__(self, garden, store, accept_all_lineages=False):
         self.garden = garden
         self.store = store
-        self.work_sender = work_sender
         self.accept_all_lineages = accept_all_lineages
+
+
+    def setWorkReceiver(self, receiver):
+        """
+        XXX
+        """
+        self.work_receiver = receiver
 
 
     def inputReceived(self, entity, name, version, value):
@@ -51,14 +57,14 @@ class Gardener(object):
         return self.dataReceived(entity, name, version, lineal_hash, value)
 
 
-    def workReceived(self, entity, name, version, lineage, value, inputs):
+    def resultReceived(self, entity, name, version, lineage, value, inputs):
         """
         XXX
         """
         return self.dataReceived(entity, name, version, lineage, value)
 
 
-    def workErrorReceived(self, entity, name, version, lineage, error, inputs):
+    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
         """
         XXX I ignore things silently.  This ought not be.
         """
@@ -134,7 +140,7 @@ class Gardener(object):
         XXX
         """
         values = [x[1:] + (sha1(x[4]).hexdigest(),) for x in values]
-        return self.work_sender.sendWork(entity, name, version, lineage,
+        return self.work_receiver.workReceived(entity, name, version, lineage,
                                          values)
 
 
