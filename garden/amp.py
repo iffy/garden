@@ -43,6 +43,7 @@ class ReceiveResult(amp.Command):
     response = []
 
 
+
 class ReceiveError(amp.Command):
 
     arguments = [
@@ -54,7 +55,6 @@ class ReceiveError(amp.Command):
         ('inputs', amp.ListOf(amp.ListOf(amp.String()))),
     ]
     response = []
-
 
 
 
@@ -167,15 +167,10 @@ class ResultSender(amp.AMP):
 
 
 
-class ResultReceiver(amp.AMP):
+class ResultReceiverProtocol(amp.AMP):
     """
     XXX
     """
-    
-    
-    implements(IResultReceiver)
-
-    gardener = None
 
 
     @ReceiveResult.responder
@@ -183,8 +178,8 @@ class ResultReceiver(amp.AMP):
         """
         XXX
         """
-        r = self.gardener.workReceived(entity, name, version, lineage, value,
-                                       inputs)
+        r = self.factory.gardener.workReceived(entity, name, version, lineage,
+            value, inputs)
         return r.addCallback(lambda x: {})
 
 
@@ -193,9 +188,22 @@ class ResultReceiver(amp.AMP):
         """
         XXX
         """
-        r = self.gardener.workErrorReceived(entity, name, version, lineage,
-                error, inputs)
+        r = self.factory.gardener.workErrorReceived(entity, name, version,
+            lineage, error, inputs)
         return r.addCallback(lambda x: {})
 
+
+
+class ResultReceiver(protocol.Factory):
+    """
+    XXX
+    """
+    
+    
+    implements(IResultReceiver)
+
+    gardener = None
+    protocol = ResultReceiverProtocol
+    
 
 

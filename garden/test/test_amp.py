@@ -11,8 +11,9 @@ from mock import create_autospec
 from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
                               IResultReceiver)
 from garden.amp import (WorkSender, WorkSenderProtocol, WorkReceiver,
-                        ResultSender, ResultReceiver, DoWork, ReceiveResult,
-                        ReceiveError, NoWorkerAvailable)
+                        ResultSender, ResultReceiverProtocol, ResultReceiver)
+from garden.amp import DoWork, ReceiveResult, ReceiveError
+from garden.amp import NoWorkerAvailable
 from garden.util import RoundRobinChooser
 from garden.test.fake import FakeWorker, FakeWorkSender, FakeGardener
 
@@ -199,18 +200,19 @@ class FunctionalTest(TestCase):
 
     def test_result_send_receive(self):
         """
-        ResultSender can send to ResultReceiver
+        ResultSender can send to ResultReceiverProtocol
         """
         sender = ResultSender()
         sender.makeConnection(StringTransport())
         
-        receiver = ResultReceiver()
+        receiver_factory = ResultReceiver()
+        receiver = receiver_factory.buildProtocol('addr')
         receiver.makeConnection(StringTransport())
         
         gardener = FakeGardener()
-        receiver.gardener = gardener
+        receiver_factory.gardener = gardener
         d = defer.Deferred()
-        receiver.gardener.workReceived.mock.side_effect = lambda *a: d
+        receiver_factory.gardener.workReceived.mock.side_effect = lambda *a: d
         
         r = sender.sendResult('Jim', 'apples', '12', 'bbbb', 'value', [
                 ['seed', '11', 'dddd', 'hash'],
@@ -231,18 +233,20 @@ class FunctionalTest(TestCase):
 
     def test_error_send_receive(self):
         """
-        ResultSender can send errors to ResultReceiver
+        ResultSender can send errors to ResultReceiverProtocol
         """
         sender = ResultSender()
         sender.makeConnection(StringTransport())
         
-        receiver = ResultReceiver()
+        receiver_factory = ResultReceiver()
+        receiver = receiver_factory.buildProtocol('addr')
         receiver.makeConnection(StringTransport())
         
         gardener = FakeGardener()
-        receiver.gardener = gardener
+        receiver_factory.gardener = gardener
         d = defer.Deferred()
-        receiver.gardener.workErrorReceived.mock.side_effect = lambda *a: d
+
+        receiver_factory.gardener.workErrorReceived.mock.side_effect = lambda *a: d
         
         r = sender.sendError('Jim', 'apples', '12', 'bbbb', 'err', [
                 ['seed', '11', 'dddd', 'hash'],
@@ -331,12 +335,7 @@ class ResultSenderTest(TestCase):
 
 
 
-class ResultReceiverTest(TestCase):
-
-
-    def test_IResultReceiver(self):
-        verifyClass(IResultReceiver, ResultReceiver)
-        verifyObject(IResultReceiver, ResultReceiver())
+class ResultReceiverProtocolTest(TestCase):
 
 
     def test_receiveResult(self):
@@ -345,11 +344,13 @@ class ResultReceiverTest(TestCase):
         """
         d = defer.Deferred()
         
+        factory = ResultReceiver()
+        
         gardener = FakeGardener()
         gardener.workReceived.mock.side_effect = lambda *a: d
+        factory.gardener = gardener
         
-        receiver = ResultReceiver()
-        receiver.gardener = gardener
+        receiver = factory.buildProtocol('addr')
         
         r = receiver.receiveResult('Bob', 'donut', '1', 'bbbb', 'yummy', [
             ['eggs', '1', 'bbbb', 'hash'],
@@ -372,11 +373,13 @@ class ResultReceiverTest(TestCase):
         """
         d = defer.Deferred()
         
+        factory = ResultReceiver()
+        
         gardener = FakeGardener()
         gardener.workErrorReceived.mock.side_effect = lambda *a: d
+        factory.gardener = gardener
         
-        receiver = ResultReceiver()
-        receiver.gardener = gardener
+        receiver = factory.buildProtocol('addr')
         
         r = receiver.receiveError('Bob', 'donut', '1', 'bbbb', 'error', [
             ['eggs', '1', 'bbbb', 'hash'],
@@ -390,13 +393,23 @@ class ResultReceiverTest(TestCase):
         ])
         self.assertFalse(r.called)
         d.callback('foo')
-        self.assertEqual(self.successResultOf(r), {})
-        
-        
-        
+        self.assertEqual(self.successResultOf(r), {})     
 
-        
 
-    
-    
-    
+
+class ResultReceiverTest(TestCase):
+
+
+    def test_IResultReceiver(self):
+        verifyClass(IResultReceiver, ResultReceiver)
+        verifyObject(IResultReceiver, ResultReceiver())
+
+
+    def test_Factory(self):
+        """
+        Should be a factory, and should know about L{ResultReceiverProtocol}
+        """
+        self.assertTrue(issubclass(ResultReceiver, Factory))
+        self.assertEqual(ResultReceiver.protocol, ResultReceiverProtocol)
+
+
