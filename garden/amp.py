@@ -17,7 +17,7 @@ class NoWorkerAvailable(Exception):
 
 
 
-class DoWork(amp.Command):
+class ReceiveWork(amp.Command):
 
     arguments = [
         ('entity', amp.String()),
@@ -62,6 +62,10 @@ class GardenerProtocol(amp.AMP):
     """
     XXX
     """
+    
+    implements(IWorkReceiver, IResultSource, IResultReceiver)
+    
+    result_receiver = None
 
 
     def connectionMade(self):
@@ -74,10 +78,49 @@ class GardenerProtocol(amp.AMP):
         amp.AMP.connectionLost(self, reason)
 
 
+    def workReceived(self, entity, name, version, lineage, inputs):
+        """
+        XXX
+        """
+        return self.callRemote(ReceiveWork,
+            entity=entity,
+            name=name,
+            version=version,
+            lineage=lineage,
+            inputs=[list(x) for x in inputs])
+
+
+    def setResultReceiver(self, receiver):
+        """
+        XXX
+        """
+        self.result_receiver = receiver
+
+
+    @ReceiveResult.responder
+    def resultReceived(self, entity, name, version, lineage, value, inputs):
+        """
+        XXX
+        """
+        result = self.result_receiver.resultReceived(entity, name, version,
+            lineage, value, inputs)
+        return result.addCallback(lambda x: {})
+
+
+    @ReceiveError.responder
+    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
+        """
+        XXX
+        """
+        result = self.result_receiver.resultErrorReceived(entity, name, version,
+            lineage, error, inputs)
+        return result.addCallback(lambda x: {})
+
+
 
 class GardenerFactory(protocol.Factory):
     """
-    XXX
+    I reside with the L{Gardener} and communicate with L{WorkerFactory}s.
     """
     
     implements(IWorkReceiver, IResultSource, IResultReceiver)
@@ -97,6 +140,13 @@ class GardenerFactory(protocol.Factory):
 
     def _protocolDisconnected(self, proto):
         self.proto_chooser.remove(proto)
+
+
+    def buildProtocol(self, addr):
+        proto = self.protocol()
+        proto.factory = self
+        proto.setResultReceiver(self)
+        return proto
 
 
     def workReceived(self, entity, name, version, lineage, inputs):
@@ -122,6 +172,95 @@ class GardenerFactory(protocol.Factory):
 
 
 
+class WorkerProtocol(amp.AMP):
+    """
+    XXX
+    """
+    
+    implements(IWorkReceiver, IWorkSource, IResultReceiver)
+    
+    work_receiver = None
+
+    
+    def connectionMade(self):
+        amp.AMP.connectionMade(self)
+        self.factory.connected_protocol = self
+
+
+    def connectionLost(self, reason):
+        self.factory.connected_protocol = None
+        amp.AMP.connectionLost(self, reason)
+
+
+    def setWorkReceiver(self, receiver):
+        self.work_receiver = receiver
+
+
+    @ReceiveWork.responder
+    def workReceived(self, entity, name, version, lineage, inputs):
+        return self.work_receiver.workReceived(entity, name, version, lineage,
+                                               inputs).addCallback(lambda x:{})
+
+
+    def resultReceived(self, entity, name, version, lineage, value, inputs):
+        return self.callRemote(ReceiveResult,
+            entity=entity,
+            name=name,
+            version=version,
+            lineage=lineage,
+            value=value,
+            inputs=inputs)
+
+
+    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
+        return self.callRemote(ReceiveError,
+            entity=entity,
+            name=name,
+            version=version,
+            lineage=lineage,
+            error=error,
+            inputs=inputs)
+
+
+
+class WorkerFactory(protocol.ReconnectingClientFactory):
+    """
+    XXX
+    """
+    
+    implements(IWorkReceiver, IWorkSource, IResultReceiver)
+    
+    protocol = WorkerProtocol
+    work_receiver = None
+    connected_protocol = None
+    
+    
+    def buildProtocol(self, addr):
+        proto = self.protocol()
+        proto.factory = self
+        proto.setWorkReceiver(self)
+        return proto
+    
+    
+    def setWorkReceiver(self, receiver):
+        self.work_receiver = receiver
+
+
+    def workReceived(self, entity, name, version, lineage, inputs):
+        return self.work_receiver.workReceived(entity, name, version, lineage,
+            inputs)
+
+
+    def resultReceived(self, entity, name, version, lineage, value, inputs):
+        return self.connected_protocol.resultReceived(entity, name, version,
+            lineage, value, inputs)
+
+
+    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
+        return self.connected_protocol.resultErrorReceived(entity, name, version,
+            lineage, error, inputs)
+
+
 
 class WorkSenderProtocol(amp.AMP):
     """
@@ -130,7 +269,7 @@ class WorkSenderProtocol(amp.AMP):
 
 
     def sendWork(self, entity, name, version, lineage, inputs):
-        return self.callRemote(DoWork, entity=entity, name=name,
+        return self.callRemote(ReceiveWork, entity=entity, name=name,
                                version=version, lineage=lineage,
                                inputs=[list(x) for x in inputs])
 
@@ -144,96 +283,5 @@ class WorkSenderProtocol(amp.AMP):
         self.factory._protocolDisconnected(self)
         amp.AMP.connectionLost(self, reason)
 
-
-
-class WorkReceiver(amp.AMP):
-    """
-    XXX
-    """
-
-
-    #implements(IWorkReceiver)
-
-
-    worker = None
-
-
-    @DoWork.responder
-    def receiveWork(self, entity, name, version, lineage, inputs):
-        """
-        XXX
-        """
-        r = self.worker.doWork(entity, name, version, lineage, inputs)
-        return r.addCallback(lambda x: {})
-
-
-
-class ResultSender(amp.AMP):
-    """
-    XXX
-    """
-
-
-    #implements(IResultSender)
-
-
-    def sendResult(self, entity, name, version, lineage, value, inputs):
-        """
-        XXX
-        """
-        return self.callRemote(ReceiveResult, entity=entity, name=name,
-                        version=version, lineage=lineage, value=value,
-                        inputs=[list(x) for x in inputs])
-        
-
-
-    def sendError(self, entity, name, version, lineage, error, inputs):
-        """
-        XXX
-        """
-        return self.callRemote(ReceiveError, entity=entity, name=name,
-                        version=version, lineage=lineage, error=error,
-                        inputs=[list(x) for x in inputs])
-
-
-
-class ResultReceiverProtocol(amp.AMP):
-    """
-    XXX
-    """
-
-
-    @ReceiveResult.responder
-    def receiveResult(self, entity, name, version, lineage, value, inputs):
-        """
-        XXX
-        """
-        r = self.factory.gardener.workReceived(entity, name, version, lineage,
-            value, inputs)
-        return r.addCallback(lambda x: {})
-
-
-    @ReceiveError.responder
-    def receiveError(self, entity, name, version, lineage, error, inputs):
-        """
-        XXX
-        """
-        r = self.factory.gardener.workErrorReceived(entity, name, version,
-            lineage, error, inputs)
-        return r.addCallback(lambda x: {})
-
-
-
-class ResultReceiver(protocol.Factory):
-    """
-    XXX
-    """
-    
-    
-    #implements(IResultReceiver)
-
-    gardener = None
-    protocol = ResultReceiverProtocol
-    
 
 
