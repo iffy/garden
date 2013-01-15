@@ -1,5 +1,3 @@
-from twisted.application import service, internet
-from twisted.internet import endpoints, protocol
 from twisted.python import usage
 
 

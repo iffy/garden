@@ -1,6 +1,6 @@
 from twisted.python import usage
-from twisted.internet import reactor, endpoints, protocol
-from twisted.application import internet, service
+from twisted.internet import reactor, endpoints
+from twisted.application import service
 
 
 
