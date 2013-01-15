@@ -6,7 +6,7 @@ from twisted.protocols import amp
 from twisted.internet import defer, protocol
 from zope.interface import implements
 
-from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
+from garden.interface import (IWorkSource, IWorkReceiver, IResultSource,
                               IResultReceiver)
 from garden.util import RoundRobinChooser
 
@@ -58,13 +58,75 @@ class ReceiveError(amp.Command):
 
 
 
-class WorkSenderProtocol(amp.AMP):
+class GardenerProtocol(amp.AMP):
+    """
+    XXX
+    """
+
+
+    def connectionMade(self):
+        amp.AMP.connectionMade(self)
+        self.factory._protocolConnected(self)
+
+
+    def connectionLost(self, reason):
+        self.factory._protocolDisconnected(self)
+        amp.AMP.connectionLost(self, reason)
+
+
+
+class GardenerFactory(protocol.Factory):
     """
     XXX
     """
     
-    
-    implements(IWorkSender)
+    implements(IWorkReceiver, IResultSource, IResultReceiver)
+
+    protocol = GardenerProtocol
+    result_receiver = None
+
+
+    def __init__(self):
+        self.proto_chooser = RoundRobinChooser()
+        self.connected_protocols = []
+
+
+    def _protocolConnected(self, proto):
+        self.proto_chooser.add(proto)
+
+
+    def _protocolDisconnected(self, proto):
+        self.proto_chooser.remove(proto)
+
+
+    def workReceived(self, entity, name, version, lineage, inputs):
+        try:
+            proto = self.proto_chooser.next()
+        except:
+            return defer.fail(NoWorkerAvailable('something'))
+        return proto.workReceived(entity, name, version, lineage, inputs)
+
+
+    def setResultReceiver(self, receiver):
+        self.result_receiver = receiver
+
+
+    def resultReceived(self, entity, name, version, lineage, value, inputs):
+        return self.result_receiver.resultReceived(entity, name, version,
+            lineage, value, inputs)
+
+
+    def resultErrorReceived(self, entity, name, version, lineage, value, inputs):
+        return self.result_receiver.resultErrorReceived(entity, name, version,
+            lineage, value, inputs)
+
+
+
+
+class WorkSenderProtocol(amp.AMP):
+    """
+    I receive work and send it over the wire to a L{WorkSource}.
+    """
 
 
     def sendWork(self, entity, name, version, lineage, inputs):
@@ -84,45 +146,13 @@ class WorkSenderProtocol(amp.AMP):
 
 
 
-class WorkSender(protocol.Factory):
-    """
-    XXX
-    """
-    
-    implements(IWorkSender)
-    
-    protocol = WorkSenderProtocol
-
-
-    def __init__(self):
-        self.proto_chooser = RoundRobinChooser()
-        self.connected_protocols = []
-
-
-    def _protocolConnected(self, proto):
-        self.proto_chooser.add(proto)
-
-
-    def _protocolDisconnected(self, proto):
-        self.proto_chooser.remove(proto)
-
-
-    def sendWork(self, entity, name, version, lineage, inputs):
-        try:
-            proto = self.proto_chooser.next()
-        except:
-            return defer.fail(NoWorkerAvailable('something'))
-        return proto.sendWork(entity, name, version, lineage, inputs)
-
-
-
 class WorkReceiver(amp.AMP):
     """
     XXX
     """
 
 
-    implements(IWorkReceiver)
+    #implements(IWorkReceiver)
 
 
     worker = None
@@ -144,7 +174,7 @@ class ResultSender(amp.AMP):
     """
 
 
-    implements(IResultSender)
+    #implements(IResultSender)
 
 
     def sendResult(self, entity, name, version, lineage, value, inputs):
@@ -200,7 +230,7 @@ class ResultReceiver(protocol.Factory):
     """
     
     
-    implements(IResultReceiver)
+    #implements(IResultReceiver)
 
     gardener = None
     protocol = ResultReceiverProtocol

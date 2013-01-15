@@ -1,6 +1,5 @@
 from twisted.trial.unittest import TestCase
-from twisted.internet import defer
-from twisted.internet.protocol import Factory, connectionDone
+from twisted.internet import defer, protocol
 from zope.interface.verify import verifyClass, verifyObject
 
 from twisted.test.proto_helpers import StringTransport
@@ -8,38 +7,48 @@ from twisted.test.proto_helpers import StringTransport
 from mock import create_autospec
 
 
-from garden.interface import (IWorkSender, IWorkReceiver, IResultSender,
+from garden.interface import (IWorkSource, IWorkReceiver, IResultSource,
                               IResultReceiver)
-from garden.amp import (WorkSender, WorkSenderProtocol, WorkReceiver,
-                        ResultSender, ResultReceiverProtocol, ResultReceiver)
 from garden.amp import DoWork, ReceiveResult, ReceiveError
 from garden.amp import NoWorkerAvailable
+from garden.amp import GardenerFactory, GardenerProtocol
 from garden.util import RoundRobinChooser
-from garden.test.fake import FakeWorker, FakeWorkSender, FakeGardener
+from garden.test.fake import (FakeWorker, FakeWorkReceiver, FakeResultReceiver,
+                              FakeGardener)
 
 
 
-class WorkSenderTest(TestCase):
+class GardenerFactoryTest(TestCase):
 
 
-    def test_IWorkSender(self):
-        verifyClass(IWorkSender, WorkSender)
-        verifyObject(IWorkSender, WorkSender())
+    def test_IWorkReceiver(self):
+        verifyClass(IWorkReceiver, GardenerFactory)
+        verifyObject(IWorkReceiver, GardenerFactory())
+
+
+    def test_IResultSource(self):
+        verifyClass(IResultSource, GardenerFactory)
+        verifyObject(IResultSource, GardenerFactory())
+
+
+    def test_IResultReceiver(self):
+        verifyClass(IResultReceiver, GardenerFactory)
+        verifyObject(IResultReceiver, GardenerFactory())
 
 
     def test_Factory(self):
         """
-        Should use L{WorkSenderProtocol} by default and should be a factory
+        Should use L{GardenerProtocol} by default and should be a factory
         """
-        self.assertTrue(issubclass(WorkSender, Factory))
-        self.assertEqual(WorkSender.protocol, WorkSenderProtocol)
+        self.assertTrue(issubclass(GardenerFactory, protocol.Factory))
+        self.assertEqual(GardenerFactory.protocol, GardenerProtocol)
 
 
     def test_connectedProtocols(self):
         """
         Should keep track of the protocols that are connected.
         """
-        f = WorkSender()
+        f = GardenerFactory()
         ch = f.proto_chooser
         self.assertTrue(isinstance(ch, RoundRobinChooser))
         self.assertEqual(ch.options, [])
@@ -55,53 +64,103 @@ class WorkSenderTest(TestCase):
         
         # should know about disconnection
         transport.loseConnection()
-        p.connectionLost(connectionDone)
+        p.connectionLost(protocol.connectionDone)
         ch.remove.assert_called_once_with(p)
 
 
-    def test_sendWork(self):
+    def test_workReceived(self):
         """
         Should send work to the next protocol
         """
-        f = WorkSender()
+        f = GardenerFactory()
         
         d1 = defer.Deferred()
         
-        p1 = FakeWorkSender()
-        p1.sendWork.mock.side_effect = lambda *a: d1
+        p1 = FakeWorkReceiver()
+        p1.workReceived.mock.side_effect = lambda *a: d1
         
         f.proto_chooser.add(p1)
         f.proto_chooser.next = create_autospec(f.proto_chooser.next,
                                 return_value=p1)
         
-        r = f.sendWork('Guy', 'bread', '1', 'aaaa', [])
-        p1.sendWork.assert_called_once_with('Guy', 'bread', '1', 'aaaa', [])
+        r = f.workReceived('Guy', 'bread', '1', 'aaaa', [])
+        p1.workReceived.assert_called_once_with('Guy', 'bread', '1', 'aaaa', [])
         self.assertEqual(r, d1, "Should return the protocol's response")
 
 
-    def test_sendWork_noprotocols(self):
+    def test_workReceived_noprotocols(self):
         """
         If there are no protocols ready to take work, errback
         """
-        f = WorkSender()
-        r = f.sendWork('Foo', 'bread', '1', 'aaaa', [])
+        f = GardenerFactory()
+        r = f.workReceived('Foo', 'bread', '1', 'aaaa', [])
         self.assertFailure(r, NoWorkerAvailable)
 
 
+    def test_setResultReceiver(self):
+        """
+        Should set the result_receiver
+        """
+        f = GardenerFactory()
+        f.setResultReceiver('foo')
+        self.assertEqual(f.result_receiver, 'foo')
 
-class WorkSenderProtocolTest(TestCase):
+
+    def test_resultReceived(self):
+        """
+        Received results should be sent to my result_receiver
+        """
+        f = GardenerFactory()
+        f.setResultReceiver(FakeResultReceiver())
+        r = f.resultReceived('joe', 'cake', '1', 'aaaa', 'val', [])
+        f.result_receiver.resultReceived.assert_called_once_with('joe', 'cake',
+            '1', 'aaaa', 'val', [])
+        self.assertTrue(r.called)
 
 
-    def test_IWorkSender(self):
-        verifyClass(IWorkSender, WorkSenderProtocol)
-        verifyObject(IWorkSender, WorkSenderProtocol())
+    def test_resultErrorReceived(self):
+        """
+        Received errors should be sent to my result_receiver
+        """
+        f = GardenerFactory()
+        f.setResultReceiver(FakeResultReceiver())
+        r = f.resultErrorReceived('joe', 'cake', '1', 'aaaa', 'val', [])
+        f.result_receiver.resultErrorReceived.assert_called_once_with('joe',
+            'cake', '1', 'aaaa', 'val', [])
+        self.assertTrue(r.called)
+
+
+
+
+
+
+class WorkerFactoryTest(TestCase):
+
+
+    def test_IResultReceiver(self):
+        verifyClass(IResultReceiver, WorkerFactory)
+        verifyObject(IResultReceiver, WorkerFactory())
+
+
+    def test_IWorkSource(self):
+        verifyClass(IWorkSource, WorkerFactory)
+        verifyObject(IWorkSource, WorkerFactory())
+
+
+
+class WorkTransmitterProtocolTest(TestCase):
+
+
+    def test_IWorkReceiver(self):
+        verifyClass(IWorkReceiver, WorkTransmitterProtocol)
+        verifyObject(IWorkReceiver, WorkTransmitterProtocol())
 
 
     def test_sendWork(self):
         """
         Sending work should call DoWork on the remote side
         """
-        sender = WorkSenderProtocol()
+        sender = WorkTransmitterProtocol()
         
         ret = defer.Deferred()
         sender.callRemote = create_autospec(sender.callRemote, return_value=ret)
@@ -161,9 +220,9 @@ class FunctionalTest(TestCase):
 
     def test_work_send_receive(self):
         """
-        WorkSender can send to WorkReceiver and cause work to happen.
+        WorkTransmitter can send to WorkReceiver and cause work to happen.
         """
-        sender_factory = WorkSender()
+        sender_factory = WorkTransmitter()
         
         sender = sender_factory.buildProtocol('foo')
         sender_transport = StringTransport()
