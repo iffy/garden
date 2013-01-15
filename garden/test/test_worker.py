@@ -55,3 +55,28 @@ class BlockingWorkerTest(TestCase):
         receive_result.callback('foo')
         self.assertTrue(r.called, "Now that the result is confirmed sent, "
                         "the work should be considered done")
+
+
+    def test_workReceived_list(self):
+        """
+        If the inputs are a list, that should be okay too
+        """
+        receiver = FakeResultReceiver()
+
+        w = BlockingWorker()        
+        w.setResultReceiver(receiver)
+        
+        def foo(a, b):
+            return a + b
+        w.registerFunction('foo', 'version1', foo)
+        
+        r = w.workReceived('bob', 'foo', 'version1', 'aaaa', [
+            ['a', 'v1', 'xxxx', 'big', 'BIG'],
+            ['b', 'v1', 'xxxx', 'fish', 'FISH'],
+        ])
+        receiver.resultReceived.assert_called_once_with('bob', 'foo', 'version1',
+            'aaaa', 'bigfish', [
+                ('a', 'v1', 'xxxx', 'BIG'),
+                ('b', 'v1', 'xxxx', 'FISH'),
+            ])
+        return r

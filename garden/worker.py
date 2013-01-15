@@ -37,7 +37,7 @@ class BlockingWorker(object):
         func = self._functions[(name, version)]
         args = [x[3] for x in inputs]
         result = func(*args)
-        value_stripped_inputs = [x[:3] + (x[4],) for x in inputs]
+        value_stripped_inputs = [tuple(x[:3]) + (x[4],) for x in inputs]
         return self.result_receiver.resultReceived(entity, name, version,
             lineage, result, value_stripped_inputs)
 
