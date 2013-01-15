@@ -1,4 +1,4 @@
-.. image:: https://travis-ci.org/iffy/garden.png
+.. image:: https://travis-ci.org/iffy/garden.png?branch=master
 
 `Builds <http://travis-ci.org/iffy/garden>`_ | `Docs <https://garden.readthedocs.org>`_
 
