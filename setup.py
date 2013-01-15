@@ -10,6 +10,7 @@ setup(
 #    scripts=['bin/garden'],
     packages=[
         'garden', 'garden.test',
+        'garden.service', 'garden.service.test',
         'twisted.plugins',
     ],
     install_requires=[
