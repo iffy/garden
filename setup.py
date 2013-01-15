@@ -10,7 +10,7 @@ setup(
 #    scripts=['bin/garden'],
     packages=[
         'garden', 'garden.test',
-#        'twisted.plugins',
+        'twisted.plugins',
     ],
     install_requires=[
         'Twisted>=12.3.0',
