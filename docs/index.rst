@@ -5,9 +5,15 @@ Garden
 .. image:: _static/process-diagram.svg
 
 
-In the above diagram, blue boxes indicate objects responsible for sending
-or receiving data.  White boxes indicate things that do stuff to or with the 
-data.
+The above diagram shows how data flows through the garden.  In a few steps, this
+is what happens:
+
+1. Gardener receives new data
+2. Gardener determines what work needs to happen because of the new data
+3. Gardener sends work to Worker
+4. Worker does work
+5. Worker sends result back to Gardener as new data
+6. Repeat
 
 
 
