@@ -14,6 +14,7 @@ clean:
 	-rm -rf htmlcov
 	-rm .coverage.*
 	-rm .coverage
+	-rm -r garden.egg-info
 
 #------------------------------------------------------------------------------
 # generate a tar file for distribution
