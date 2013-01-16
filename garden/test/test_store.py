@@ -1,8 +1,11 @@
+from twisted.trial.unittest import TestCase
+from twisted.python.filepath import FilePath
 from twisted.internet import defer
 from zope.interface.verify import verifyObject
 
 
 from garden.interface import IDataStore
+from garden.store import SqliteStore
 
 
 
@@ -52,9 +55,13 @@ class IDataStoreTestMixin(object):
         self.assertEqual(r['changed'], False, "The store should report that the"
                          " value hasn't changed")
         
+        r = yield store.put('Sam', 'cake', '1', 'ffff', 'hey')
+        self.assertEqual(r['changed'], True, "The store should indicate that "
+                         "the value has changed")
+        
         r = yield store.get('Sam', 'cake', '1', 'ffff')
         self.assertEqual(r, [
-            ('Sam', 'cake', '1', 'ffff', 'value'),
+            ('Sam', 'cake', '1', 'ffff', 'hey'),
         ])
 
 
@@ -132,5 +139,35 @@ class IDataStoreTestMixin(object):
         self.assertEqual(set(r), set([
             ('Sam', 'cake', '3', 'bbbb', 'value 3'),            
         ]), "Should be able to select on (entity, name, version, lineage)")
+
+
+
+
+class SqliteStoreTest(TestCase, IDataStoreTestMixin):
+
+    
+    def getInstance(self):
+        return SqliteStore(':memory:')
+
+
+    @defer.inlineCallbacks
+    def test_persist(self):
+        """
+        Should actually make a database file if you choose it on __init__
+        """
+        tmpfile = FilePath(self.mktemp())
+        store = SqliteStore(tmpfile.path)
+        
+        yield store.put('Bob', 'eggs', '1', 'ffff', 'value')
+        self.assertTrue(tmpfile.exists(), "Should have created the file: %r" % (
+                        tmpfile.path,))
+        
+        store2 = SqliteStore(tmpfile.path)
+        v = yield store2.get('Bob', 'eggs', '1', 'ffff')
+        self.assertEqual(v, [
+            ('Bob', 'eggs', '1', 'ffff', 'value'),
+        ])
+        
+
 
 
