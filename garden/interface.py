@@ -2,6 +2,68 @@ from zope.interface import Interface, Attribute
 
 
 
+class IDataStore(Interface):
+
+
+    def put(entity, name, version, lineage, value):
+        """
+        Save data in the store.
+        
+        @type entity: str
+        @param entity: Entity name
+        
+        @type name: str
+        @param name: Data name
+        
+        @type version: str
+        @param version: Data version
+        
+        @type lineage: str
+        @param lineage: Data lineal hash
+        
+        @type value: str
+        @param value: Data value
+        
+        @rtype: C{Deferred}
+        @return: On successful storage, will callback with a dictionary with
+            at least the following items:
+            
+              - C{'changed'}: C{True} if C{value} is different than
+                the previous value for the same C{(entity, name, version,
+                lineage)}.  C{False} indicates that C{value} is the same.
+            
+            Acceptable values for errbacks are defined by specific
+            implementations.
+        """
+
+
+    def get(entity, name=None, version=None, lineage=None):
+        """
+        Get data from the store
+        
+        @type entity: str
+        @param entity: Entity name
+        
+        @type name: str
+        @param name: Data name
+        
+        @type version: str
+        @param version: Data version
+        
+        @type lineage: str
+        @param lineage: Data lineal hash
+        
+        @rtype: C{Deferred}
+        @return: On a successful fetch, this will callback with a list of tuples
+            of the form C{(entity, name, version, lineage, value)} that match
+            the passed in parameters.  If there are no matches, an empty list
+            will be returned.
+            
+            Acceptable values for errbacks are defined by specific
+            implementations.
+        """
+
+
 class IInputSource(Interface):
 
 
