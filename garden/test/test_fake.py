@@ -2,9 +2,10 @@ from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyClass, verifyObject
 
 
-from garden.interface import IResultReceiver, IWorkReceiver, IWorker, IGardener
+from garden.interface import (IResultReceiver, IWorkReceiver, IWorker, 
+                              IGardener, IInputReceiver)
 from garden.test.fake import (FakeResultReceiver, FakeWorkReceiver, FakeWorker,
-                              FakeGardener)
+                              FakeGardener, FakeInputReceiver)
 
 
 
@@ -159,5 +160,24 @@ class FakeGardenerTest(TestCase):
         f.setWorkReceiver('foo')
         self.assertEqual(f.work_receiver, 'foo')
 
+
+
+class FakeInputReceiverTest(TestCase):
+    
+    
+    def test_IInputReceiver(self):
+        verifyClass(IInputReceiver, FakeInputReceiver)
+        verifyObject(IInputReceiver, FakeInputReceiver())
+
+
+    def test_inputReceived(self):
+        """
+        Succeed immediately by default
+        """
+        f = FakeInputReceiver()
+        r = f.inputReceived('Jim', 'name', 'version', 'value')
+        self.assertTrue(r.called, "Should call back immediately")
+        f.inputReceived.assert_called_once_with('Jim', 'name', 'version',
+                                                'value')
 
 
