@@ -336,4 +336,24 @@ class GardenerTest(TestCase):
         self.assertFailure(r, Exception)
 
 
+    def test_dataReceived_errorFetchingData(self):
+        """
+        If there's an error getting data for computing, the whole call should
+        fail
+        """
+        store = InMemoryStore()
+        store.get = create_autospec(store.get, side_effect=lambda *a: defer.fail(Exception('foo')))
+        
+        garden = Garden()
+        garden.addPath('cake', '1', [
+            ('eggs', '1'),
+        ])
+        
+        g = Gardener(garden, store, accept_all_lineages=True)
+        
+        r = g.dataReceived('Jim', 'eggs', '1', 'xxxx', 'value')
+        self.assertFailure(r, Exception)
+        return r.addErrback(lambda x:None)
+
+
 

@@ -13,7 +13,7 @@ def aggregateResult(deferred_list):
     """
     Aggregate a list of Deferreds into a single success or failure.  If any of
     the results fail, then the Deferred returned by this will errback.  If all
-    of them succeed, this will callback with an undefined result.
+    of them succeed, this will callback with a list of the success results.
     """
     return defer.DeferredList(deferred_list, fireOnOneErrback=True, consumeErrors=True)
 
@@ -141,7 +141,7 @@ class Gardener(object):
         dlist = []
         for input_list in input_lists:
             values = [self.store.get(entity, x[0], x[1]) for x in input_list]
-            value_list = defer.DeferredList(values)
+            value_list = aggregateResult(values)
             value_list.addCallback(self._gotValueList, entity, name, version)
             value_list.addCallback(lambda r:[x[1] for x in r])
             dlist.append(value_list)
