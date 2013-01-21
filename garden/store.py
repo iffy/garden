@@ -6,6 +6,16 @@ from twisted.enterprise import adbapi
 from garden.interface import IDataStore
 
 
+sqlite = None
+try:
+    from pysqlite2 import dbapi2 as sqlite
+except:
+    pass
+
+if not sqlite:
+    import sqlite3 as sqlite
+
+
 
 class SqliteStore(object):
 
@@ -13,7 +23,7 @@ class SqliteStore(object):
 
 
     def __init__(self, connstr, reactor=reactor):
-        self.pool = adbapi.ConnectionPool('pysqlite2.dbapi2', connstr,
+        self.pool = adbapi.ConnectionPool(sqlite.__name__, connstr,
             cp_min=1, cp_max=1)
         self.pool.start()
         
