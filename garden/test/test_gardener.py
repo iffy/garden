@@ -105,7 +105,7 @@ class GardenerTest(TestCase):
         
         g.dataReceived = create_autospec(g.dataReceived)
         
-        r = g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
+        g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
             ('water', '1', 'aaaa', 'NOT THE RIGHT HASH'),
         ])
         self.assertEqual(g.dataReceived.call_count, 0, "Should not have called"
