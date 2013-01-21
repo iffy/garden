@@ -3,7 +3,7 @@ from twisted.internet import defer
 from zope.interface.verify import verifyClass, verifyObject
 
 from garden.interface import IWorker
-from garden.worker import BlockingWorker
+from garden.worker import BlockingWorker, ThreadedWorker
 from garden.test.fake import FakeResultReceiver
 
 
@@ -80,3 +80,48 @@ class BlockingWorkerTest(TestCase):
                 ('b', 'v1', 'xxxx', 'FISH'),
             ])
         return r
+
+
+
+class ThreadedWorkerTest(TestCase):
+
+
+    def test_IWorker(self):
+        verifyClass(IWorker, ThreadedWorker)
+        verifyObject(IWorker, ThreadedWorker())
+
+
+    def test_setResultReceiver(self):
+        """
+        Should set result_receiver
+        """
+        t = ThreadedWorker()
+        self.assertEqual(t.result_receiver, None)
+        t.setResultReceiver('foo')
+        self.assertEqual(t.result_receiver, 'foo')
+
+
+    @defer.inlineCallbacks
+    def test_workReceived(self):
+        """
+        Should run the work in a thread
+        """
+        receiver = FakeResultReceiver()
+        
+        w = ThreadedWorker()
+        w.setResultReceiver(receiver)
+        
+        def foo(a, b):
+            return a + b
+        w.registerFunction('foo', 'version1', foo)
+        
+        r = yield w.workReceived('bob', 'foo', 'version1', 'aaaa', [
+            ('a', 'v1', 'xxxx', 'big', 'BIG'),
+            ('b', 'v1', 'xxxx', 'fish', 'FISH'),
+        ])
+        receiver.resultReceived.assert_called_once_with('bob', 'foo', 'version1',
+            'aaaa', 'bigfish', [
+                ('a', 'v1', 'xxxx', 'BIG'),
+                ('b', 'v1', 'xxxx', 'FISH'),
+            ])
+        
