@@ -63,7 +63,7 @@ class GardenerTest(TestCase):
 
     def test_resultReceived(self):
         """
-        When work is received, it should call dataReceived only if the input
+        When a result is received, it should call dataReceived only if the input
         hashes match the current input hashes
         """
         store = InMemoryStore()
@@ -80,11 +80,36 @@ class GardenerTest(TestCase):
         g.dataReceived = create_autospec(g.dataReceived, return_value=ret)
         
         r = g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
-            ('Toad', 'water', '1', 'aaaa', sha1('wet').hexdigest()),
+            ('water', '1', 'aaaa', sha1('wet').hexdigest()),
         ])
         g.dataReceived.assert_called_once_with('Toad', 'ice', '1', 'bbbb',
                                                'the result')
         self.assertEqual(self.successResultOf(r), 'done')
+
+
+    def test_resultReceived_inputsChanged(self):
+        """
+        When a result is received, if the inputs used to make the result aren't
+        the same now, then don't call dataReceived and consider the result
+        received immediately.
+        """
+        store = InMemoryStore()
+        store.put('Toad', 'water', '1', 'aaaa', 'wet')
+        
+        garden = Garden()
+        garden.addPath('ice', '1', [
+            ('water', '1'),
+        ])
+        
+        g = Gardener(garden, store, accept_all_lineages=True)
+        
+        g.dataReceived = create_autospec(g.dataReceived)
+        
+        r = g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
+            ('water', '1', 'aaaa', 'NOT THE RIGHT HASH'),
+        ])
+        self.assertEqual(g.dataReceived.call_count, 0, "Should not have called"
+                         " dataReceived, because the input hash doesn't match")
 
 
     def test_resultErrorReceived(self):
@@ -129,7 +154,8 @@ class GardenerTest(TestCase):
             call('Frog', 'cake', '1'),
             call('Frog', 'german pancake', '1'),
         ])
-        self.assertEqual(self.successResultOf(r), ['hey', 'hey'])
+        self.assertTrue(r.called)
+        return r
 
 
     def test_dataReceived_waitForStorage(self):
@@ -214,7 +240,8 @@ class GardenerTest(TestCase):
         store, garden, g = self.mkCakeSetup()
         
         r = g.doPossibleWork('sam', 'cake', '1')
-        self.assertEqual([], self.successResultOf(r))
+        self.assertTrue(r.called)
+        return r
 
 
     def test_doPossibleWork_simple(self):
@@ -234,7 +261,8 @@ class GardenerTest(TestCase):
              ('sam', 'flour', '1', 'bbbb', 'flour value')]
         )
 
-        self.assertEqual(len(self.successResultOf(r)), 1)
+        self.assertTrue(r.called)
+        return r
 
 
     def test_doPossibleWork_multiLineage(self):
@@ -281,5 +309,31 @@ class GardenerTest(TestCase):
         ])
         self.assertEqual(g.dispatchSinglePieceOfWork.call_count, 2)
         self.assertEqual(len(self.successResultOf(r)), 2)
+
+
+    def test_dataReceived_errorReceiving(self):
+        """
+        If the work_receiver errsback on receiving any of the pieces of work,
+        the whole dataReceived call should also errback.
+        """
+        store = InMemoryStore()
+        
+        garden = Garden()
+        garden.addPath('cake', '1', [
+            ('eggs', '1'),
+        ])
+        garden.addPath('cake', '2', [
+            ('eggs', '1'),
+        ])
+        
+        receiver = FakeWorkReceiver()
+        receiver.workReceived.mock.side_effect = lambda *a: defer.fail(Exception('foo'))
+        
+        g = Gardener(garden, store, accept_all_lineages=True)
+        g.setWorkReceiver(receiver)
+        
+        r = g.dataReceived('Jim', 'eggs', '1', 'xxxx', 'value')
+        self.assertFailure(r, Exception)
+
 
 

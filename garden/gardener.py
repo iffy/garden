@@ -9,6 +9,15 @@ from garden.interface import IGardener
 from garden.path import linealHash
 
 
+def aggregateResult(deferred_list):
+    """
+    Aggregate a list of Deferreds into a single success or failure.  If any of
+    the results fail, then the Deferred returned by this will errback.  If all
+    of them succeed, this will callback with an undefined result.
+    """
+    return defer.DeferredList(deferred_list, fireOnOneErrback=True, consumeErrors=True)
+
+
 
 class Gardener(object):
     """
@@ -61,7 +70,28 @@ class Gardener(object):
         """
         XXX
         """
-        return self.dataReceived(entity, name, version, lineage, value)
+        # check input hashes
+        def gotValue(val, used_hash):
+            current_hash = sha1(val[0][4]).hexdigest()
+            return current_hash == used_hash
+        
+        def checkMatches(result, entity, name, version, lineage, value):
+            input_matches = [x[1] for x in result]
+            if False in input_matches:
+                # there were non-matching results
+                return
+            return self.dataReceived(entity, name, version, lineage, value)
+            
+        dlist = []
+        for i in inputs:
+            used_hash = i[3]
+            r = self.store.get(entity, i[0], i[1], i[2])
+            r.addCallback(gotValue, used_hash)
+            dlist.append(r)
+        
+        r = defer.DeferredList(dlist)
+        r.addCallback(checkMatches, entity, name, version, lineage, value)
+        return r
 
 
     def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
@@ -87,7 +117,7 @@ class Gardener(object):
         for dst in self.garden.pathsRequiring(name, version):
             d = self.doPossibleWork(entity, *dst)
             dlist.append(d)
-        return defer.DeferredList(dlist).addCallback(self._flattenResult)
+        return aggregateResult(dlist)
 
 
     def doPossibleWork(self, entity, name, version):
@@ -115,7 +145,7 @@ class Gardener(object):
             value_list.addCallback(self._gotValueList, entity, name, version)
             value_list.addCallback(lambda r:[x[1] for x in r])
             dlist.append(value_list)
-        return defer.DeferredList(dlist).addCallback(self._flattenResult)
+        return aggregateResult(dlist)
 
 
     def _gotValueList(self, values, entity, name, version):
@@ -126,13 +156,7 @@ class Gardener(object):
             d = self.dispatchSinglePieceOfWork(entity, name, version,
                 linealHash(name, version, lineages), list(combination))
             dlist.append(d)
-        return defer.DeferredList(dlist)
-
-
-    def _flattenResult(self, result):
-        ret = []
-        map(ret.extend, [x[1] for x in result])
-        return ret
+        return aggregateResult(dlist)
 
 
     def dispatchSinglePieceOfWork(self, entity, name, version, lineage, values):
