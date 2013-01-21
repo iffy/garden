@@ -83,13 +83,15 @@ class Gardener(object):
             return self.dataReceived(entity, name, version, lineage, value)
             
         dlist = []
+        # XXX we should also test that the given inputs are part of a valid
+        # path in the Garden.
         for i in inputs:
             used_hash = i[3]
             r = self.store.get(entity, i[0], i[1], i[2])
             r.addCallback(gotValue, used_hash)
             dlist.append(r)
         
-        r = defer.DeferredList(dlist)
+        r = aggregateResult(dlist)
         r.addCallback(checkMatches, entity, name, version, lineage, value)
         return r
 

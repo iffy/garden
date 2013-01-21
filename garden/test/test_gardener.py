@@ -112,6 +112,28 @@ class GardenerTest(TestCase):
                          " dataReceived, because the input hash doesn't match")
 
 
+    def test_resultReceived_storeError(self):
+        """
+        If there's a problem getting data out of the store while receiving a
+        result, then fail the resultReceived call.
+        """
+        store = InMemoryStore()
+        store.get = create_autospec(store.get, side_effect=lambda *a: defer.fail(Exception('foo')))
+        
+        garden = Garden()
+        
+        g = Gardener(garden, store, accept_all_lineages=True)
+        
+        g.dataReceived = create_autospec(g.dataReceived)
+        
+        r = g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
+            ('water', '1', 'aaaa', 'NOT THE RIGHT HASH'),
+        ])
+        self.assertEqual(g.dataReceived.call_count, 0, "Should not have called"
+                         " dataReceived, because the input hash doesn't match")
+        self.assertFailure(r, Exception)
+
+
     def test_resultErrorReceived(self):
         """
         For now, drop the error silently on the floor.
