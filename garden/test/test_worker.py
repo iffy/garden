@@ -115,7 +115,7 @@ class ThreadedWorkerTest(TestCase):
             return a + b
         w.registerFunction('foo', 'version1', foo)
         
-        r = yield w.workReceived('bob', 'foo', 'version1', 'aaaa', [
+        yield w.workReceived('bob', 'foo', 'version1', 'aaaa', [
             ('a', 'v1', 'xxxx', 'big', 'BIG'),
             ('b', 'v1', 'xxxx', 'fish', 'FISH'),
         ])
