@@ -237,3 +237,56 @@ And Frodo now has **four** versions of ``'letter'``:
 
 
 Confused?  Enlightened?
+
+
+Using/Deploying
+===============
+
+The above code isn't very reusable or deployable.  There's lots of ways to
+deploy components of the Garden.  Here are some:
+
+
+Single Process
+--------------
+
+You can start a single process containing both a Gardener and a single Worker
+pretty easily.  Write a python module containing `getWorker()`
+and `getGarden()` functions, which return an ``IWorker`` and a ``Garden``
+respectively.  For save the following as ``sample.py``:
+
+.. code:: python
+
+    from garden.worker import ThreadedWorker
+    from garden.path import Garden
+    
+    def cake(eggs, flour, flavor):
+        words = []
+        if flour == 'wheat':
+            words.append('gross')
+        return ' '.join(words + [flavor, 'cake'])
+    
+    def getGarden():
+        garden = Garden()
+        garden.addPath('cake', '1', [
+            ('eggs', '1'),
+            ('flour', '1'),
+            ('flavor', '1'),
+        ])
+        return garden
+    
+    def getWorker():
+        worker = ThreadedWorker()
+        worker.registerFunction('cake', '1', cake)
+        return worker
+    
+And then spawn a Gardener/Worker process by using ``twistd garden combo``:
+
+.. code:: bash
+
+    twistd -n garden combo -m sample --sqlite-db=/tmp/data.sqlite -w tcp:9990
+
+
+The above command will save data in a ``/tmp/data.sqlite`` and listen for
+incoming data over HTTP on port 9990.  (You can manually add data by visiting
+http://127.0.0.1:9990/)
+
