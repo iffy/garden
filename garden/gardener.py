@@ -23,14 +23,18 @@ class Gardener(object):
     """
     I coordinate work based on new data.
     
-    @ivar work_sender: The L{IWorkSender} instance responsible for sending work
-        to workers.
+    @ivar work_receiver: The L{IWorkReceiver} instance responsible for receiving
+        the work I produce.
+    
+    @ivar data_receiver: The L{IDataReceiver} instance that will receive
+        all new data.
     """
     
     implements(IGardener)
     
     
     work_receiver = None
+    data_receiver = None
     
     
     def __init__(self, garden, store, accept_all_lineages=False):
@@ -44,6 +48,13 @@ class Gardener(object):
         XXX
         """
         self.work_receiver = receiver
+
+
+    def setDataReceiver(self, receiver):
+        """
+        XXX
+        """
+        self.data_receiver = receiver
 
 
     def inputReceived(self, entity, name, version, value):
@@ -108,14 +119,22 @@ class Gardener(object):
         XXX
         """
         r = self.store.put(entity, name, version, lineage, value)
-        return r.addCallback(self._dataStored, entity, name, version)
+        return r.addCallback(self._dataStored, entity, name, version, lineage,
+                             value)
 
 
-    def _dataStored(self, result, entity, name, version):
+    def _dataStored(self, result, entity, name, version, lineage, value):
         """
         XXX
         """
+        if not result['changed']:
+            # XXX this inaction should probably be logged
+            return
+
         dlist = []
+        if self.data_receiver:
+            dlist.append(self.data_receiver.dataReceived(entity, name, version,
+                                                         lineage, value))
         for dst in self.garden.pathsRequiring(name, version):
             d = self.doPossibleWork(entity, *dst)
             dlist.append(d)

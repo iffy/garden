@@ -10,7 +10,7 @@ from garden.interface import IGardener
 from garden.local import InMemoryStore
 from garden.path import Garden, linealHash
 from garden.gardener import Gardener
-from garden.test.fake import FakeWorkReceiver
+from garden.test.fake import FakeWorkReceiver, FakeDataReceiver
 
 
 
@@ -376,6 +376,70 @@ class GardenerTest(TestCase):
         r = g.dataReceived('Jim', 'eggs', '1', 'xxxx', 'value')
         self.assertFailure(r, Exception)
         return r.addErrback(lambda x:None)
+
+
+    def test_setDataReceiver(self):
+        """
+        You can add something to receive new data
+        """
+        g = Gardener(None, None)
+        self.assertEqual(g.data_receiver, None)
+        g.setDataReceiver('foo')
+        self.assertEqual(g.data_receiver, 'foo')
+
+
+    def test_dataReceived_dataReceiver(self):
+        """
+        If there is an attached IDataReceiver, then send them all new data.
+        """
+        store = InMemoryStore()
+        
+        receiver = FakeDataReceiver()
+        d = defer.Deferred()
+        receiver.dataReceived.mock.side_effect = lambda *a: d
+        
+        g = Gardener(Garden(), store)
+        g.setDataReceiver(receiver)
+        
+        r = g.dataReceived('joe', 'cake', '1', 'xxxx', 'value')
+        result = []
+        r.addCallback(result.append)
+        receiver.dataReceived.assert_called_once_with('joe', 'cake', '1',
+                                                      'xxxx', 'value')
+        stored_val = self.successResultOf(store.get('joe'))
+        self.assertEqual(len(stored_val), 1, "Should have stored the result at this point")
+        self.assertEqual(result, [], "Should not have finished yet, since the "
+                         "data receiver hasn't acknowledged receipt")
+        
+        d.callback('foo')
+        self.assertTrue(result, "Should have finished now")
+
+
+    def test_dataReceived_data_receiver_unchangedData(self):
+        """
+        If data isn't different than before, don't send it off to the other
+        IDataReceiver and don't spawn any work
+        """
+        store = InMemoryStore()
+        store.put('joe', 'cake', '1', 'xxxx', 'value')
+        
+        receiver = FakeDataReceiver()
+        d = defer.Deferred()
+        receiver.dataReceived.mock.side_effect = lambda *a: d
+        
+        g = Gardener(Garden(), store)
+        g.setDataReceiver(receiver)
+        g.doPossibleWork = create_autospec(g.doPossibleWork)
+        
+        r = g.dataReceived('joe', 'cake', '1', 'xxxx', 'value')
+        result = []
+        r.addCallback(result.append)
+        self.assertEqual(receiver.dataReceived.call_count, 0, "Should not send "
+                         "unchanged data")
+        self.assertEqual(g.doPossibleWork.call_count, 0, "Should not spawn new "
+                         "work since the the result won't change, because the "
+                         "functions are expected to be pure")
+        self.assertTrue(result, "Should have called back immediately")                         
 
 
 
