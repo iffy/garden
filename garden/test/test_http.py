@@ -12,8 +12,8 @@ from twisted.web.test.test_web import DummyChannel
 from twisted.web.http_headers import Headers
 from twisted.web.http import parse_qs
 
-from garden.interface import IInputSource
-from garden.http import WebInputSource
+from garden.interface import IInputSource, IDataReceiver
+from garden.http import WebInputSource, WebDataFeed
 from garden.test.fake import FakeInputReceiver
 
 import cgi
@@ -152,5 +152,16 @@ class WebInputSourceTest(TestCase):
         self.assertTrue(result.called, "Should have a result now")
         self.assertTrue(request.write.call_count > 0, "Should have written "
                         "something as a response")
+
+
+
+class WebDataFeedTest(TestCase):
+
+
+    def test_IDataReceiver(self):
+        verifyObject(IDataReceiver, WebDataFeed())
+
+
+
         
         
