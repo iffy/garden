@@ -15,6 +15,7 @@ clean:
 	-rm .coverage.*
 	-rm .coverage
 	-rm -r garden.egg-info
+	-rm -r build
 
 #------------------------------------------------------------------------------
 # generate a tar file for distribution
