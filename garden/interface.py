@@ -64,6 +64,33 @@ class IDataStore(Interface):
         """
 
 
+
+class IDataSource(Interface):
+    """
+    I am a source of data (input + lineal hash)
+    """
+    
+    def setDataReceiver(receiver):
+        """
+        Set the L{IDataReceiver} to receive data from me.
+        """
+
+
+
+class IDataReceiver(Interface):
+    """
+    I receive data (input + lineal hash)
+    """
+    
+    def dataReceived(entity, name, version, lineage, value):
+        """
+        Receive the passed in data.
+        
+        @return: A C{Deferred} which callbacks to indicate receipt of the data
+            and errbacks to indicate data not received.
+        """
+
+
 class IInputSource(Interface):
 
 
@@ -242,7 +269,7 @@ class IWorker(IWorkReceiver, IResultSource):
 
 
 
-class IGardener(IResultReceiver, IInputReceiver, IWorkSource):
+class IGardener(IResultReceiver, IDataSource, IInputReceiver, IWorkSource):
     pass
 
 

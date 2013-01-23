@@ -3,7 +3,7 @@ A collection of verified fakes for testing.
 """
 
 __all__ = ['FakeResultReceiver', 'FakeWorkReceiver', 'FakeWorker',
-           'FakeGardener']
+           'FakeGardener', 'FakeDataReceiver', 'FakeInputReceiver']
 
 from zope.interface import implements
 from twisted.internet import defer
@@ -11,7 +11,7 @@ from twisted.internet import defer
 from mock import create_autospec
 
 from garden.interface import (IResultReceiver, IWorkReceiver, IWorker,
-                              IGardener, IInputReceiver)
+                              IGardener, IInputReceiver, IDataReceiver)
 
 
 
@@ -114,6 +114,10 @@ class FakeGardener(_SpeccedMock):
         self.work_receiver = receiver
 
 
+    def setDataReceiver(self, receiver):
+        self.data_receiver = receiver
+
+
 
 class FakeInputReceiver(_SpeccedMock):
     
@@ -128,5 +132,17 @@ class FakeInputReceiver(_SpeccedMock):
         pass
 
 
+
+
+class FakeDataReceiver(_SpeccedMock):
+    
+    implements(IDataReceiver)
+
+    faked_methods = [
+        ('dataReceived', lambda *x: defer.succeed('done')),
+    ]
+
+    def dataReceived(self, entity, name, version, lineage, value):
+        pass
 
 

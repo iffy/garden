@@ -3,9 +3,9 @@ from zope.interface.verify import verifyClass, verifyObject
 
 
 from garden.interface import (IResultReceiver, IWorkReceiver, IWorker, 
-                              IGardener, IInputReceiver)
+                              IGardener, IInputReceiver, IDataReceiver)
 from garden.test.fake import (FakeResultReceiver, FakeWorkReceiver, FakeWorker,
-                              FakeGardener, FakeInputReceiver)
+                              FakeGardener, FakeInputReceiver, FakeDataReceiver)
 
 
 
@@ -179,5 +179,23 @@ class FakeInputReceiverTest(TestCase):
         self.assertTrue(r.called, "Should call back immediately")
         f.inputReceived.assert_called_once_with('Jim', 'name', 'version',
                                                 'value')
+
+
+class FakeDataReceiverTest(TestCase):
+
+
+    def test_IDataReceiver(self):
+        verifyClass(IDataReceiver, FakeDataReceiver)
+        verifyObject(IDataReceiver, FakeDataReceiver())
+
+
+    def test_dataReceived(self):
+        """
+        Should succeed immediately by default
+        """
+        f = FakeDataReceiver()
+        r = f.dataReceived('Guy', 'name', 'v1', 'aaaa', 'value')
+        self.assertTrue(r.called, "Should call back immediately")
+        f.dataReceived.assert_called_once_with('Guy', 'name', 'v1', 'aaaa', 'value')
 
 
