@@ -332,10 +332,12 @@ And see the result:
 
 Use better flour, and see the data change:
 
+.. code:: bash
+
+    curl -d 'entity=Gandalf' -d 'name=flour' -d 'version=1' -d 'value=white' http://127.0.0.1:9990
+
 .. code::
 
-    $ curl -d 'entity=Gandalf' -d 'name=flour' -d 'version=1' -d 'value=white' http://127.0.0.1:9990
-    success
     $ sqlite3 /tmp/data.sqlite "select value from data where name='cake';"
     value               
     --------------------
