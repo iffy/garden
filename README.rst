@@ -250,9 +250,9 @@ Single Process
 --------------
 
 You can start a single process containing both a Gardener and a single Worker
-pretty easily.  Write a python module containing `getWorker()`
-and `getGarden()` functions, which return an ``IWorker`` and a ``Garden``
-respectively.  For save the following as ``sample.py``:
+pretty easily.  Write a python module containing ``getWorker()``
+and ``getGarden()`` functions, which return an ``IWorker`` and a ``Garden``
+respectively.  Save the following as ``sample.py``:
 
 .. code:: python
 
@@ -279,7 +279,7 @@ respectively.  For save the following as ``sample.py``:
         worker.registerFunction('cake', '1', cake)
         return worker
     
-And then spawn a Gardener/Worker process by using ``twistd garden combo``:
+And then spawn a Gardener/Worker process with ``twistd``:
 
 .. code:: bash
 
@@ -288,5 +288,33 @@ And then spawn a Gardener/Worker process by using ``twistd garden combo``:
 
 The above command will save data in a ``/tmp/data.sqlite`` and listen for
 incoming data over HTTP on port 9990.  (You can manually add data by visiting
-http://127.0.0.1:9990/)
+http://127.0.0.1:9990/).
+
+Load some data with ``curl``:
+
+.. code:: bash
+
+    curl -d 'entity=Gandalf' -d 'name=eggs' -d 'version=1' -d 'value=good' http://127.0.0.1:9990
+    curl -d 'entity=Gandalf' -d 'name=flour' -d 'version=1' -d 'value=wheat' http://127.0.0.1:9990
+    curl -d 'entity=Gandalf' -d 'name=flavor' -d 'version=1' -d 'value=hobbit' http://127.0.0.1:9990
+
+And see the result:
+
+.. code::
+
+    $ sqlite3 /tmp/data.sqlite "select value from data where name='cake';"
+    value               
+    --------------------
+    gross hobbit cake
+
+Use better flour, and see the data change:
+
+.. code::
+
+    $ curl -d 'entity=Gandalf' -d 'name=flour' -d 'version=1' -d 'value=white' http://127.0.0.1:9990
+    success
+    $ sqlite3 /tmp/data.sqlite "select value from data where name='cake';"
+    value               
+    --------------------
+    hobbit cake 
 
