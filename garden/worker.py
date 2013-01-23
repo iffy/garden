@@ -55,10 +55,14 @@ class BlockingWorker(object):
         """
         func = self._functions[(name, version)]
         args = _getInputValues(inputs)
-        result = func(*args)
         value_stripped_inputs = _makeResultInputs(inputs)
-        return self.result_receiver.resultReceived(entity, name, version,
-            lineage, result, value_stripped_inputs)
+        try:
+            result = func(*args)
+            return self.result_receiver.resultReceived(entity, name, version,
+                lineage, result, value_stripped_inputs)
+        except Exception as e:
+            return self.result_receiver.resultErrorReceived(entity, name,
+                version, lineage, repr(e), value_stripped_inputs)
 
 
     def setResultReceiver(self, receiver):
@@ -114,9 +118,15 @@ class ThreadedWorker(object):
         
         def gotResult(result, value_stripped_inputs):
             return self.result_receiver.resultReceived(entity, name, version,
-                lineage, result, value_stripped_inputs)            
+                lineage, result, value_stripped_inputs)
         
-        return result.addCallback(gotResult, value_stripped_inputs)
+        def gotError(err, value_stripped_inputs):
+            return self.result_receiver.resultErrorReceived(entity, name,
+                version, lineage, repr(err.value), value_stripped_inputs)
+        
+        return result.addCallbacks(gotResult, gotError,
+                                   callbackArgs=(value_stripped_inputs,),
+                                   errbackArgs=(value_stripped_inputs,))
 
 
 

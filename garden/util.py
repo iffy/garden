@@ -1,6 +1,6 @@
 class RoundRobinChooser(object):
     """
-    XXX
+    I choose among a group of options by cycling through them.
     """
     
     
@@ -17,21 +17,29 @@ class RoundRobinChooser(object):
 
     def add(self, option):
         """
-        XXX
+        Add an option to the rotation.
+        
+        @param option: Value of option.
         """
         self.options.append(option)
 
 
     def remove(self, option):
         """
-        XXX
+        Remove an option from the rotation.
+        
+        @param option: Option to remove.
         """
         self.options.remove(option)
 
 
     def next(self):
         """
-        XXX
+        Get the next option.
+        
+        @raise IndexError: If there's no option to get.
+        
+        @return: The next option.
         """
         if not self.options:
             raise IndexError("No options to choose from")
