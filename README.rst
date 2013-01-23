@@ -242,12 +242,11 @@ Confused?  Enlightened?
 Using/Deploying
 ===============
 
-The above code isn't very reusable or deployable.  There's lots of ways to
-deploy components of the Garden.  Here are some:
+There are many ways to deploy components of the Garden.  Here are some:
 
 
-Single Process
---------------
+Single Combination Process
+--------------------------
 
 You can start a single process containing both a Gardener and a single Worker
 pretty easily.  Write a python module containing ``getWorker()``
@@ -256,6 +255,7 @@ respectively.  Save the following as ``sample.py``:
 
 .. code:: python
 
+    # sample.py
     from garden.worker import ThreadedWorker
     from garden.path import Garden
     
@@ -279,15 +279,15 @@ respectively.  Save the following as ``sample.py``:
         worker.registerFunction('cake', '1', cake)
         return worker
     
-And then spawn a Gardener/Worker process with ``twistd``:
+And then spawn a combo process with ``twistd``:
 
 .. code:: bash
 
     twistd -n garden combo -m sample --sqlite-db=/tmp/data.sqlite -w tcp:9990
 
 
-The above command will save data in a ``/tmp/data.sqlite`` and listen for
-incoming data over HTTP on port 9990.  (You can manually add data by visiting
+Data will be saved in ``/tmp/data.sqlite``.  New data values can be sent using
+HTTP on port 9990.  (You can manually add data by visiting
 http://127.0.0.1:9990/).
 
 Load some data with ``curl``:
