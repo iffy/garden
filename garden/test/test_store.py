@@ -5,7 +5,7 @@ from zope.interface.verify import verifyObject
 
 
 from garden.interface import IDataStore
-from garden.store import SqliteStore
+from garden.store import SqliteStore, InMemoryStore
 
 
 
@@ -170,4 +170,9 @@ class SqliteStoreTest(TestCase, IDataStoreTestMixin):
         
 
 
+class InMemoryStore_IDataStoreTest(TestCase, IDataStoreTestMixin):
+
+
+    def getInstance(self):
+        return InMemoryStore()
 

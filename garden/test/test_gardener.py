@@ -7,7 +7,7 @@ from mock import create_autospec, call
 from hashlib import sha1
 
 from garden.interface import IGardener
-from garden.local import InMemoryStore
+from garden.store import InMemoryStore
 from garden.path import Garden, linealHash
 from garden.gardener import Gardener
 from garden.test.fake import FakeWorkReceiver, FakeDataReceiver

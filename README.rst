@@ -83,7 +83,7 @@ Create a place to store the results:
 
 .. code:: python
 
-    >>> from garden.local import InMemoryStore
+    >>> from garden.store import InMemoryStore
     >>> store = InMemoryStore()
 
 
