@@ -2,7 +2,7 @@
 from distutils.core import setup
 
 setup(
-    url='none',
+    url='https://github.com/iffy/garden',
     author='Matt Haggard',
     author_email='haggardii@gmail.com',
     name='garden',
@@ -10,7 +10,8 @@ setup(
 #    scripts=['bin/garden'],
     packages=[
         'garden', 'garden.test',
-#        'twisted.plugins',
+        'garden.twistd', 'garden.twistd.test',
+        'twisted.plugins',
     ],
     install_requires=[
         'Twisted>=12.3.0',

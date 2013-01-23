@@ -24,6 +24,7 @@ class SqliteStore(object):
 
     def __init__(self, connstr, reactor=reactor):
         self.pool = adbapi.ConnectionPool(sqlite.__name__, connstr,
+            check_same_thread=False,
             cp_min=1, cp_max=1)
         self.pool.start()
         
