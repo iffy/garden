@@ -105,6 +105,9 @@ Now give the ``Gardener`` some data about Frodo's progress in the class:
 
     >>> gardener.inputReceived('Frodo', 'assignments', 'v1', '0.5')
     <Deferred...>
+
+.. code:: python
+
     >>> gardener.inputReceived('Frodo', 'exams', 'v1', '0.9')
     <Deferred...>
 
@@ -115,6 +118,9 @@ And see that the grade was computed:
 
     >>> store.get('Frodo', 'percent', 'v1').result
     [('Frodo', 'percent', 'v1', ... '0.74')]
+
+.. code:: python
+
     >>> store.get('Frodo', 'letter', 'v1').result
     [('Frodo', 'letter', 'v1', ... 'B')]
 
@@ -190,6 +196,9 @@ And see that Frodo now has two ``'letter'`` values:
 
     >>> store.get('Frodo', 'letter', 'v1').result
     [('Frodo', 'letter', 'v1', ... 'B')]
+
+.. code:: python
+
     >>> store.get('Frodo', 'letter', 'v2').result
     [('Frodo', 'letter', 'v2', ... 'C')]
 
@@ -231,6 +240,9 @@ As you may expect, Frodo now has two versions of ``'percent'``:
 
     >>> store.get('Frodo', 'percent', 'v1').result
     [('Frodo', 'percent', 'v1', ... '0.74')]
+
+.. code:: python
+
     >>> store.get('Frodo', 'percent', 'v2').result
     [('Frodo', 'percent', 'v2', ... '0.86')]
 
@@ -240,6 +252,9 @@ And Frodo now has **four** versions of ``'letter'``:
 
     >>> store.get('Frodo', 'letter', 'v1').result
     [('Frodo', 'letter', 'v1', ... 'B'), ('Frodo', 'letter', 'v1', ... 'B')]
+
+.. code:: python
+
     >>> store.get('Frodo', 'letter', 'v2').result
     [('Frodo', 'letter', 'v2', ... 'C'), ('Frodo', 'letter', 'v2', ... 'B')]
 
