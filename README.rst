@@ -288,7 +288,7 @@ And then spawn a combo process with ``twistd``:
 
 Data will be saved in ``/tmp/data.sqlite``.  New data values can be sent using
 HTTP on port 9990.  (You can manually add data by visiting
-http://127.0.0.1:9990/).
+http://127.0.0.1:9990/ and you can view a live feed of the results at http://127.0.0.1:9990/feed).
 
 Load some data with ``curl``:
 

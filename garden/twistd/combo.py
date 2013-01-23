@@ -44,13 +44,15 @@ def makeService(options):
     log.msg('SqliteStore(%r)' % (sqlite_uri,))
     store = SqliteStore(sqlite_uri)
     
-    # http input source
-    from garden.http import WebInputSource
+    # http input/output
+    from garden.http import WebInputSource, WebDataFeed
     from twisted.web.resource import Resource
     from twisted.web.server import Site
     http_input_source = WebInputSource()
+    http_data_receiver = WebDataFeed()
     root = Resource()
     root.putChild('', http_input_source)
+    root.putChild('feed', http_data_receiver)
     site = Site(root)
     
     endpoint = endpoints.serverFromString(reactor,
@@ -64,6 +66,7 @@ def makeService(options):
     gardener.setWorkReceiver(worker)
     worker.setResultReceiver(gardener)
     http_input_source.setInputReceiver(gardener)
+    gardener.setDataReceiver(http_data_receiver)
     
     return http_service
 

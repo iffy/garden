@@ -1,5 +1,6 @@
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
+from twisted.internet import defer
 from zope.interface import implements
 
 import json
@@ -77,6 +78,7 @@ class WebDataFeed(Resource):
                     }
                     .thing {
                         font-family: monospace;
+                        white-space: nowrap;
                     }
                     .entity {
                         
@@ -140,4 +142,4 @@ class WebDataFeed(Resource):
                 self.spectators.remove(s)
                 continue
             s.write(sseMsg('data', json.dumps([entity, name, version, lineage, value])))
-
+        return defer.succeed('received')
