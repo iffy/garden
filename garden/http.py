@@ -40,6 +40,11 @@ class WebInputSource(Resource):
         
         res = self.input_receiver.inputReceived(entity, name, version, value)
         def received(result):
+            request.write('success')
             request.finish()
-        res.addCallback(received)
+        def error(err):
+            request.setResponseCode(500)
+            request.write('error')
+            request.finish()
+        res.addCallbacks(received, error)
         return NOT_DONE_YET
