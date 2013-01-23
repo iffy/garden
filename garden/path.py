@@ -2,6 +2,15 @@ from collections import defaultdict
 from hashlib import sha1
 
 
+from garden.error import Error
+
+
+
+class CycleError(Error):
+    pass
+    
+
+
 
 def linealHash(name, version, input_hashes=None):
     """
@@ -65,7 +74,25 @@ class Garden(object):
         @param version: Destination version
         @param inputs: Inputs required for destination.  Must be an list of
             2-tuples (name, version).
+        
+        @raise CycleError: If adding this path would create circular
+            dependencies/recursion.
         """
+        if (name, version) in inputs:
+            raise CycleError(name, version, inputs)
+        
+        def ancestors(n, v):
+            input_lists = self.inputsFor(n, v)
+            for input_list in input_lists:
+                for i in input_list:
+                    yield i
+                    for x in ancestors(*i):
+                        yield x
+        # check each input line
+        for i in inputs:
+            if (name, version) in ancestors(*i):
+                raise CycleError(name, version, inputs)
+
         self._destinations[(name, version)].append(inputs)
         for iname, iversion in inputs:
             self._inputs[(iname, iversion)].append((name, version))
