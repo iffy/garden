@@ -4,7 +4,7 @@ from zope.interface.verify import verifyClass, verifyObject
 
 from garden.interface import IWorker
 from garden.worker import BlockingWorker, ThreadedWorker
-from garden.test.fake import FakeResultReceiver
+from garden.test.fake import FakeResultReceiver, FakeResultErrorReceiver
 
 
 
@@ -14,15 +14,6 @@ class BlockingWorkerTest(TestCase):
     def test_IWorker(self):
         verifyClass(IWorker, BlockingWorker)
         verifyObject(IWorker, BlockingWorker())
-
-
-    def test_setResultReceiver(self):
-        """
-        Should just set the result_receiver
-        """
-        w = BlockingWorker()
-        w.setResultReceiver('foo')
-        self.assertEqual(w.result_receiver, 'foo')
 
 
     def test_workReceived(self):
@@ -59,15 +50,14 @@ class BlockingWorkerTest(TestCase):
 
     def test_workReceived_error(self):
         """
-        If the work results in an Exception, set an error rather than a
-        result
+        If the work results in an Exception, send an error to the error receiver
         """
-        receiver = FakeResultReceiver()
+        receiver = FakeResultErrorReceiver()
         result = defer.Deferred()
         receiver.resultErrorReceived.side_effect = lambda *a: result
         
         w = BlockingWorker()
-        w.setResultReceiver(receiver)
+        w.setResultErrorReceiver(receiver)
         
         exc = Exception('something')
         def foo(a, b):
@@ -164,11 +154,11 @@ class ThreadedWorkerTest(TestCase):
         """
         If there's an error doing the work, tell the result_receiver
         """
-        receiver = FakeResultReceiver()
+        receiver = FakeResultErrorReceiver()
         receiver.resultErrorReceived.side_effect = lambda *a: defer.succeed('hey')
         
         w = ThreadedWorker()
-        w.setResultReceiver(receiver)
+        w.setResultErrorReceiver(receiver)
         
         exc = Exception('foo')
         

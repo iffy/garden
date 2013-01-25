@@ -61,7 +61,7 @@ class BlockingWorker(object):
             return self.result_receiver.resultReceived(entity, name, version,
                 lineage, result, value_stripped_inputs)
         except Exception as e:
-            return self.result_receiver.resultErrorReceived(entity, name,
+            return self.error_receiver.resultErrorReceived(entity, name,
                 version, lineage, repr(e), value_stripped_inputs)
 
 
@@ -70,6 +70,10 @@ class BlockingWorker(object):
         XXX
         """
         self.result_receiver = receiver
+
+
+    def setResultErrorReceiver(self, receiver):
+        self.error_receiver = receiver
 
 
 
@@ -106,6 +110,10 @@ class ThreadedWorker(object):
         self.result_receiver = receiver
 
 
+    def setResultErrorReceiver(self, receiver):
+        self.error_receiver = receiver
+
+
     def workReceived(self, entity, name, version, lineage, inputs):
         """
         XXX
@@ -121,7 +129,7 @@ class ThreadedWorker(object):
                 lineage, result, value_stripped_inputs)
         
         def gotError(err, value_stripped_inputs):
-            return self.result_receiver.resultErrorReceived(entity, name,
+            return self.error_receiver.resultErrorReceived(entity, name,
                 version, lineage, repr(err.value), value_stripped_inputs)
         
         return result.addCallbacks(gotResult, gotError,
