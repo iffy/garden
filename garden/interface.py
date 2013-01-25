@@ -135,11 +135,6 @@ class IInputReceiver(Interface):
 class IResultSource(Interface):
 
 
-    result_receiver = Attribute("""
-        L{IResultReceiver} set by L{setResultReceiver}
-        """)
-
-
     def setResultReceiver(receiver):
         """
         Choose the L{IResultReceiver} to receive results from this source.
@@ -179,6 +174,20 @@ class IResultReceiver(Interface):
             Errback indicates the data was not received and should be sent
             again.
         """
+
+
+
+class IResultErrorSource(Interface):
+
+
+    def setResultErrorReceiver(receiver):
+        """
+        Choose the L{IResultErrorReceiver} to receive results from this source.
+        """
+
+
+
+class IResultErrorReceiver(Interface):
 
 
     def resultErrorReceived(entity, name, version, lineage, error, inputs):
@@ -264,12 +273,13 @@ class IWorkReceiver(Interface):
 
 
 
-class IWorker(IWorkReceiver, IResultSource):
+class IWorker(IWorkReceiver, IResultSource, IResultErrorSource):
     pass
 
 
 
-class IGardener(IResultReceiver, IDataSource, IInputReceiver, IWorkSource):
+class IGardener(IResultReceiver, IResultErrorReceiver, IDataSource,
+                IInputReceiver, IWorkSource):
     pass
 
 

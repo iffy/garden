@@ -11,7 +11,8 @@ from twisted.internet import defer
 from mock import create_autospec
 
 from garden.interface import (IResultReceiver, IWorkReceiver, IWorker,
-                              IGardener, IInputReceiver, IDataReceiver)
+                              IGardener, IInputReceiver, IDataReceiver,
+                              IResultErrorReceiver)
 
 
 
@@ -53,7 +54,7 @@ class FakeWorkReceiver(_SpeccedMock):
     implements(IWorkReceiver)
     
     faked_methods = [
-        ('workReceived', lambda *x: defer.succeed('sent')),
+        ('workReceived', lambda *x: defer.succeed('received')),
     ]
 
 
@@ -69,6 +70,7 @@ class FakeWorker(_SpeccedMock):
     
     faked_methods = [
         ('workReceived', lambda *x: defer.succeed('received')),
+        ('setResultErrorReceiver', lambda *x: None),
     ]
     
     result_receiver = None
@@ -80,6 +82,10 @@ class FakeWorker(_SpeccedMock):
 
     def setResultReceiver(self, receiver):
         self.result_receiver = receiver
+
+
+    def setResultErrorReceiver(self, receiver):
+        pass
 
 
 
@@ -145,4 +151,17 @@ class FakeDataReceiver(_SpeccedMock):
     def dataReceived(self, entity, name, version, lineage, value):
         pass
 
+
+
+class FakeResultErrorReceiver(_SpeccedMock):
+    
+    implements(IResultErrorReceiver)
+
+    faked_methods = [
+        ('resultErrorReceived', lambda *x: defer.succeed('done')),
+    ]
+    
+
+    def resultErrorReceived(self, entity, name, version, lineage, value, inputs):
+        pass
 

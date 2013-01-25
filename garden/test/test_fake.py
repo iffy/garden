@@ -3,9 +3,11 @@ from zope.interface.verify import verifyClass, verifyObject
 
 
 from garden.interface import (IResultReceiver, IWorkReceiver, IWorker, 
-                              IGardener, IInputReceiver, IDataReceiver)
+                              IGardener, IInputReceiver, IDataReceiver,
+                              IResultErrorReceiver)
 from garden.test.fake import (FakeResultReceiver, FakeWorkReceiver, FakeWorker,
-                              FakeGardener, FakeInputReceiver, FakeDataReceiver)
+                              FakeGardener, FakeInputReceiver, FakeDataReceiver,
+                              FakeResultErrorReceiver)
 
 
 
@@ -15,21 +17,6 @@ class FakeResultReceiverTest(TestCase):
     def test_IResultReceiver(self):
         verifyClass(IResultReceiver, FakeResultReceiver)
         verifyObject(IResultReceiver, FakeResultReceiver())
-
-
-    def test_resultErrorReceived(self):
-        """
-        By default, succeeds immediately.
-        """
-        f = FakeResultReceiver()
-        r = f.resultErrorReceived('Yip', 'n', 'v', 'aaaa', 'error', [
-            ('arg1', 'v1', 'bbbb', 'arg1hash'),
-        ])
-        self.assertTrue(r.called, "Should call back immediately")
-        f.resultErrorReceived.assert_called_once_with('Yip', 'n', 'v', 'aaaa',
-            'error', [
-                ('arg1', 'v1', 'bbbb', 'arg1hash'),
-            ])
 
 
     def test_resultReceived(self):
@@ -46,6 +33,28 @@ class FakeResultReceiverTest(TestCase):
                 ('arg1', 'v1', 'bbbb', 'arg1hash'),
             ])
 
+
+class FakeResultErrorReceiverTest(TestCase):
+
+
+    def test_IResultReceiver(self):
+        verifyClass(IResultErrorReceiver, FakeResultErrorReceiver)
+        verifyObject(IResultErrorReceiver, FakeResultErrorReceiver())
+
+
+    def test_resultErrorReceived(self):
+        """
+        By default, succeeds immediately.
+        """
+        f = FakeResultErrorReceiver()
+        r = f.resultErrorReceived('Yip', 'n', 'v', 'aaaa', 'error', [
+            ('arg1', 'v1', 'bbbb', 'arg1hash'),
+        ])
+        self.assertTrue(r.called, "Should call back immediately")
+        f.resultErrorReceived.assert_called_once_with('Yip', 'n', 'v', 'aaaa',
+            'error', [
+                ('arg1', 'v1', 'bbbb', 'arg1hash'),
+            ])
 
 
 class FakeWorkReceiverTest(TestCase):
@@ -103,6 +112,14 @@ class FakeWorkerTest(TestCase):
         f.setResultReceiver('foo')
         self.assertEqual(f.result_receiver, 'foo')
 
+
+    def test_setResultErrorReceiver(self):
+        """
+        Should be mocked
+        """
+        f = FakeWorker()
+        f.setResultErrorReceiver('foo')
+        f.setResultErrorReceiver.assert_called_once_with('foo')
 
 
 
