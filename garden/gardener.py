@@ -5,7 +5,7 @@ from zope.interface import implements
 from hashlib import sha1
 from itertools import product
 
-from garden.interface import IGardener
+from garden.interface import IGardener, IResultReceiver, IResultSource
 from garden.path import linealHash
 
 
@@ -17,6 +17,84 @@ def aggregateResult(deferred_list):
     """
     return defer.DeferredList(deferred_list, fireOnOneErrback=True, consumeErrors=True)
 
+
+
+class InvalidResultFilter(object):
+    """
+    I discard results that were computed using inputs that are no longer valid
+    or through a path that doesn't exist in the garden.
+    """
+    
+    implements(IResultReceiver, IResultSource)
+    
+    result_receiver = None
+    store = None
+    garden = None
+    
+    
+    def __init__(self, garden, store):
+        self.store = store
+        self.garden = garden
+
+
+    def setResultReceiver(self, receiver):
+        self.result_receiver = receiver
+
+
+    def resultReceived(self, entity, name, version, lineage, value, inputs):
+        """
+        XXX
+        """
+        # check the garden
+        valid_inputs = self.garden.inputsFor(name, version)
+        # XXX magic numbers
+        actual_inputs = [(x[0], x[1]) for x in inputs]
+        if actual_inputs not in valid_inputs:
+            return defer.succeed('invalid path')
+        
+        dlist = []
+        
+        for iname, iversion, ilineage, ihash in inputs:
+            current_val = self.store.get(entity, iname, iversion, ilineage)
+            current_val.addCallback(self._valueMatches, ihash)
+            dlist.append(current_val)
+        
+        d = aggregateResult(dlist)
+        d.addCallback(self._inputsMatch)
+        d.addCallback(self._conditionallySend, entity, name, version, lineage,
+                      value, inputs)
+        return d
+
+
+    def _valueMatches(self, current_val, ihash):
+        """
+        XXX
+        """
+        # XXX magic numbers
+        return sha1(current_val[0][4]).hexdigest() == ihash
+
+
+    def _inputsMatch(self, values):
+        """
+        XXX
+        """
+        matches = [x[1] for x in values]
+        return False not in matches
+
+
+    def _conditionallySend(self, do_send, entity, name, version, lineage, value,
+                           inputs):
+        """
+        XXX
+        """
+        if do_send:
+            return self.result_receiver.resultReceived(entity, name, version,
+                                                       lineage, value, inputs)
+
+
+    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
+        return self.result_receiver.resultErrorReceived(entity, name, version,
+                                                        lineage, error, inputs)
 
 
 class Gardener(object):
@@ -83,6 +161,7 @@ class Gardener(object):
         """
         # check input hashes
         def gotValue(val, used_hash):
+            # XXX magic numbers
             current_hash = sha1(val[0][4]).hexdigest()
             return current_hash == used_hash
         

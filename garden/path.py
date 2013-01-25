@@ -116,8 +116,8 @@ class Garden(object):
         @param name: Destination name
         @param version: Destination version
         
-        @return: A list of 2-tuples (name, version) of inputs needed to reach
-            the given destination.
+        @return: A list of lists of 2-tuples (name, version) of inputs needed
+            to reach the given destination.
         """
         return self._destinations[(name, version)]
 

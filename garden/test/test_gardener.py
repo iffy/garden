@@ -6,11 +6,12 @@ from zope.interface.verify import verifyClass, verifyObject
 from mock import create_autospec, call
 from hashlib import sha1
 
-from garden.interface import IGardener
+from garden.interface import IGardener, IResultReceiver, IResultSource
 from garden.store import InMemoryStore
 from garden.path import Garden, linealHash
-from garden.gardener import Gardener
-from garden.test.fake import FakeWorkReceiver, FakeDataReceiver
+from garden.gardener import Gardener, InvalidResultFilter
+from garden.test.fake import (FakeWorkReceiver, FakeDataReceiver,
+                              FakeResultReceiver)
 
 
 
@@ -442,4 +443,108 @@ class GardenerTest(TestCase):
         self.assertTrue(result, "Should have called back immediately")                         
 
 
+
+
+
+class InvalidResultFilterTest(TestCase):
+
+
+    def test_IResultReceiver(self):
+        verifyObject(IResultReceiver, InvalidResultFilter(None, None))
+        verifyClass(IResultReceiver, InvalidResultFilter)
+
+
+    def test_IResultSource(self):
+        verifyObject(IResultSource, InvalidResultFilter(None, None))
+        verifyClass(IResultSource, InvalidResultFilter)
+
+
+    def test_setResultReceiver(self):
+        """
+        Should set the result_receiver
+        """
+        f = InvalidResultFilter(None, None)
+        self.assertEqual(f.result_receiver, None)
+        f.setResultReceiver('foo')
+        self.assertEqual(f.result_receiver, 'foo')
+
+
+    def test_resultReceived_hashcheck(self):
+        """
+        When a result is received, it is only accepted if the inputs on which
+        it is based are still valid.
+        """
+        store = InMemoryStore()
+        store.put('joe', 'cake', '1', 'xxxx', 'chocolate')
+        
+        garden = Garden()
+        garden.addPath('happiness', '1', [
+            ('cake', '1'),
+        ])
+        
+        receiver = FakeResultReceiver()
+        receiver.resultReceived.mock.side_effect = lambda *a: defer.succeed('a')
+        
+        f = InvalidResultFilter(garden, store)
+        f.setResultReceiver(receiver)
+        
+        # receive a result not based on the correct input value
+        r = f.resultReceived('joe', 'happiness', '1', 'bbbb', 'yes', [
+            ('cake', '1', 'xxxx', sha1('vanilla').hexdigest()),
+        ])
+        self.assertEqual(receiver.resultReceived.call_count, 0, "Should not "
+                         "have passed the result on")
+        self.assertTrue(r.called)
+        
+        # receive a valid result (based on the current input value)
+        r = f.resultReceived('joe', 'happiness', '1', 'bbbb', 'yes', [
+            ('cake', '1', 'xxxx', sha1('chocolate').hexdigest()),
+        ])
+        receiver.resultReceived.assert_called_once_with('joe', 'happiness', '1',
+            'bbbb', 'yes', [
+                ('cake', '1', 'xxxx', sha1('chocolate').hexdigest()),
+            ])
+        self.assertEqual(self.successResultOf(r), 'a')
+
+
+    def test_resultReceived_invalidPath(self):
+        """
+        If a result is received that was computed using arguments that don't
+        correspond to a valid path in the garden, don't send the input on.
+        """
+        store = InMemoryStore()
+        store.put('joe', 'money', '1', 'xxxx', 'lots')
+        
+        garden = Garden()
+        garden.addPath('happiness', '1', [
+            ('cake', '1'),
+        ])
+        
+        receiver = FakeResultReceiver()
+        
+        f = InvalidResultFilter(garden, store)
+        f.setResultReceiver(receiver)
+        
+        r = f.resultReceived('joe', 'happiness', '1', 'bbbb', 'yes', [
+            ('money', '1', 'xxxx', sha1('lots').hexdigest()),
+        ])
+        self.assertEqual(receiver.resultReceived.call_count, 0, "Should not "
+                         "send the result on, because money doesn't produce "
+                         "happiness in this garden.  Only cake does that")
+        self.assertTrue(r.called)
+
+
+    def test_resultErrorReceived(self):
+        """
+        Should just be a pass-through
+        """
+        receiver = FakeResultReceiver()
+        
+        f = InvalidResultFilter(None, None)
+        f.setResultReceiver(receiver)
+        
+        r = f.resultErrorReceived('joe', 'happiness', '1', 'bbbb', 'error', [])
+        receiver.resultErrorReceived.assert_called_once_with('joe', 'happiness',
+            '1', 'bbbb', 'error', [])
+        self.assertTrue(r.called)
 
