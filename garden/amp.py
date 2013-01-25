@@ -7,7 +7,8 @@ from twisted.internet import defer, protocol
 from zope.interface import implements
 
 from garden.interface import (IWorkSource, IWorkReceiver, IResultSource,
-                              IResultReceiver)
+                              IResultReceiver, IResultErrorSource,
+                              IResultErrorReceiver)
 from garden.util import RoundRobinChooser
 
 
@@ -63,7 +64,8 @@ class GardenerProtocol(amp.AMP):
     XXX
     """
     
-    implements(IWorkReceiver, IResultSource, IResultReceiver)
+    implements(IWorkReceiver, IResultSource, IResultReceiver,
+        IResultErrorSource, IResultErrorReceiver)
     
     result_receiver = None
 
@@ -97,6 +99,10 @@ class GardenerProtocol(amp.AMP):
         self.result_receiver = receiver
 
 
+    def setResultErrorReceiver(self, receiver):
+        self.error_receiver = receiver
+
+
     @ReceiveResult.responder
     def resultReceived(self, entity, name, version, lineage, value, inputs):
         """
@@ -112,7 +118,7 @@ class GardenerProtocol(amp.AMP):
         """
         XXX
         """
-        result = self.result_receiver.resultErrorReceived(entity, name, version,
+        result = self.error_receiver.resultErrorReceived(entity, name, version,
             lineage, error, inputs)
         return result.addCallback(lambda x: {})
 
@@ -123,7 +129,8 @@ class GardenerFactory(protocol.Factory):
     I reside with the L{Gardener} and communicate with L{WorkerFactory}s.
     """
     
-    implements(IWorkReceiver, IResultSource, IResultReceiver)
+    implements(IWorkReceiver, IResultSource, IResultReceiver,
+        IResultErrorReceiver, IResultErrorSource)
 
     protocol = GardenerProtocol
     result_receiver = None
@@ -146,6 +153,7 @@ class GardenerFactory(protocol.Factory):
         proto = self.protocol()
         proto.factory = self
         proto.setResultReceiver(self)
+        proto.setResultErrorReceiver(self)
         return proto
 
 
@@ -161,13 +169,17 @@ class GardenerFactory(protocol.Factory):
         self.result_receiver = receiver
 
 
+    def setResultErrorReceiver(self, receiver):
+        self.error_receiver = receiver
+
+
     def resultReceived(self, entity, name, version, lineage, value, inputs):
         return self.result_receiver.resultReceived(entity, name, version,
             lineage, value, inputs)
 
 
     def resultErrorReceived(self, entity, name, version, lineage, value, inputs):
-        return self.result_receiver.resultErrorReceived(entity, name, version,
+        return self.error_receiver.resultErrorReceived(entity, name, version,
             lineage, value, inputs)
 
 
@@ -177,7 +189,7 @@ class WorkerProtocol(amp.AMP):
     XXX
     """
     
-    implements(IWorkReceiver, IWorkSource, IResultReceiver)
+    implements(IWorkReceiver, IWorkSource, IResultReceiver, IResultErrorReceiver)
     
     work_receiver = None
 
@@ -228,7 +240,7 @@ class WorkerFactory(protocol.ReconnectingClientFactory):
     XXX
     """
     
-    implements(IWorkReceiver, IWorkSource, IResultReceiver)
+    implements(IWorkReceiver, IWorkSource, IResultReceiver, IResultErrorReceiver)
     
     protocol = WorkerProtocol
     work_receiver = None

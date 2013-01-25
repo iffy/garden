@@ -8,13 +8,15 @@ from mock import create_autospec
 
 
 from garden.interface import (IWorkSource, IWorkReceiver, IResultSource,
-                              IResultReceiver)
+                              IResultReceiver, IResultErrorReceiver,
+                              IResultErrorSource)
 from garden.amp import ReceiveWork, ReceiveResult, ReceiveError
 from garden.amp import NoWorkerAvailable
 from garden.amp import (GardenerFactory, GardenerProtocol, WorkerFactory,
                         WorkerProtocol)
 from garden.util import RoundRobinChooser
-from garden.test.fake import (FakeWorker, FakeWorkReceiver, FakeResultReceiver)
+from garden.test.fake import (FakeWorker, FakeWorkReceiver, FakeResultReceiver,
+                              FakeResultErrorReceiver)
 
 
 
@@ -36,6 +38,14 @@ class GardenerFactoryTest(TestCase):
         verifyObject(IResultReceiver, GardenerFactory())
 
 
+    def test_IResultErrorSource(self):
+        verifyObject(IResultErrorSource, GardenerFactory())
+
+
+    def test_IResultErrorReceiver(self):
+        verifyObject(IResultErrorReceiver, GardenerFactory())
+
+
     def test_Factory(self):
         """
         Should use L{GardenerProtocol} by default and should be a factory
@@ -53,6 +63,7 @@ class GardenerFactoryTest(TestCase):
         self.assertEqual(p.factory, f)
         self.assertEqual(p.result_receiver, f, "Should set up the Factory "
                          "as the protocol's result_receiver")
+        self.assertEqual(p.error_receiver, f, "Should add the error_receiver")
 
 
     def test_connectedProtocols(self):
@@ -134,9 +145,10 @@ class GardenerFactoryTest(TestCase):
         Received errors should be sent to my result_receiver
         """
         f = GardenerFactory()
-        f.setResultReceiver(FakeResultReceiver())
+        receiver = FakeResultErrorReceiver()
+        f.setResultErrorReceiver(receiver)
         r = f.resultErrorReceived('joe', 'cake', '1', 'aaaa', 'val', [])
-        f.result_receiver.resultErrorReceived.assert_called_once_with('joe',
+        receiver.resultErrorReceived.assert_called_once_with('joe',
             'cake', '1', 'aaaa', 'val', [])
         self.assertTrue(r.called)
 
@@ -158,6 +170,14 @@ class GardenerProtocolTest(TestCase):
     def test_IResultReceiver(self):
         verifyClass(IResultReceiver, GardenerProtocol)
         verifyObject(IResultReceiver, GardenerProtocol())
+
+
+    def test_IResultErrorSource(self):
+        verifyObject(IResultErrorSource, GardenerProtocol())
+
+
+    def test_IResultErrorReceiver(self):
+        verifyObject(IResultErrorReceiver, GardenerProtocol())
 
 
     def test_workReceived(self):
@@ -202,6 +222,8 @@ class GardenerProtocolTest(TestCase):
         p = GardenerProtocol()
         receiver = FakeResultReceiver()
         p.setResultReceiver(receiver)
+        ereceiver = FakeResultErrorReceiver()
+        p.setResultErrorReceiver(ereceiver)
         
         # resultReceived
         r = p.resultReceived('joe', 'cake', '1', 'vvvv', 'value', [])
@@ -211,7 +233,7 @@ class GardenerProtocolTest(TestCase):
 
         # resultErrorReceived
         r = p.resultErrorReceived('joe', 'cake', '1', 'vvvv', 'error', [])
-        receiver.resultErrorReceived.assert_called_once_with('joe', 'cake', '1',
+        ereceiver.resultErrorReceived.assert_called_once_with('joe', 'cake', '1',
                                                          'vvvv', 'error', [])
         self.assertEqual(self.successResultOf(r), {})
 
@@ -223,6 +245,10 @@ class WorkerFactoryTest(TestCase):
     def test_IResultReceiver(self):
         verifyClass(IResultReceiver, WorkerFactory)
         verifyObject(IResultReceiver, WorkerFactory())
+
+
+    def test_IResultErrorReceiver(self):
+        verifyObject(IResultErrorReceiver, WorkerFactory())
 
 
     def test_IWorkSource(self):
@@ -281,6 +307,8 @@ class WorkerFactoryTest(TestCase):
         self.assertEqual(self.successResultOf(result), 'foo')
         
         # resultErrorReceived
+        p = FakeResultErrorReceiver()
+        f.connected_protocol = p
         p.resultErrorReceived.mock.side_effect = lambda *a: defer.succeed('bar')
         result = f.resultErrorReceived('entity', 'toast', '1', 'bbbb', 'value',
                                        [])
@@ -321,6 +349,10 @@ class WorkerProtocolTest(TestCase):
     def test_IResultReceiver(self):
         verifyClass(IResultReceiver, WorkerProtocol)
         verifyObject(IResultReceiver, WorkerProtocol())
+
+
+    def test_IResultErrorReceiver(self):
+        verifyObject(IResultErrorReceiver, WorkerProtocol())
 
 
     def test_IWorkSource(self):
@@ -493,9 +525,9 @@ class FunctionalTest(TestCase):
         wproto = wfactory.buildProtocol('foo')
         wproto.makeConnection(StringTransport())
         
-        # make a result Receiver
-        receiver = FakeResultReceiver()
-        gfactory.setResultReceiver(receiver)
+        # make a resultErrorReceiver
+        receiver = FakeResultErrorReceiver()
+        gfactory.setResultErrorReceiver(receiver)
         d = defer.Deferred()
         receiver.resultErrorReceived.mock.side_effect = lambda *a: d
         
