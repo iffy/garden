@@ -7,7 +7,7 @@ from itertools import product
 
 from garden.interface import (IGardener, IResultReceiver, IResultSource,
                               IDataSource, IDataReceiver, IWorkSource)
-from garden.path import linealHash
+from garden.data import linealHash
 
 
 def aggregateResult(deferred_list):

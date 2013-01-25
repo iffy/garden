@@ -1,11 +1,39 @@
 from twisted.trial.unittest import TestCase
 from zope.interface.verify import verifyObject
-
+from hashlib import sha1
 
 from garden.interface import (IInput, IData, IWorkInput, IWork, IResultInput,
                               IResult, IResultError)
 from garden.data import (Input, Data, WorkInput, Work, ResultInput, Result,
-                         ResultError)
+                         ResultError, linealHash)
+
+
+
+class linealHashTest(TestCase):
+
+
+    def test_basic(self):
+        """
+        The most basic lineal hash is SHA(SHA(name) + version)
+        """
+        a = linealHash('name', 'version')
+        expected = sha1(sha1('name').hexdigest() + 'version').hexdigest()
+        self.assertEqual(a, expected)
+
+
+    def test_args(self):
+        """
+        If a data point has inputs, the lineal hash of the data point is
+        SHA(SHA(SHA(name) + version) + input1_lineal_hash + input2_lineal_hash)
+        """
+        sample_hash1 = sha1('foo').hexdigest()
+        sample_hash2 = sha1('bar').hexdigest()
+        
+        a = linealHash('name', 'version', [sample_hash1, sample_hash2])
+        expected = sha1(linealHash('name', 'version') + sample_hash1 \
+                        + sample_hash2).hexdigest()
+        self.assertEqual(a, expected, "With inputs, expected lineal hash to be"
+                         " H(linealHash + input1hash + input2hash)")
 
 
 
@@ -24,6 +52,19 @@ class InputTest(TestCase):
         self.assertEqual(i.value, 'value')
 
 
+    def test_IData(self):
+        """
+        You can easily convert IInput into IData
+        """
+        i = Input('joe', 'a', '1', 'value')
+        d = IData(i)
+        self.assertEqual(d.entity, 'joe')
+        self.assertEqual(d.name, 'a')
+        self.assertEqual(d.version, '1')
+        self.assertEqual(d.value, 'value')
+        self.assertEqual(d.lineage, linealHash('a', '1'))
+
+
 class DataTest(TestCase):
 
 
@@ -38,6 +79,19 @@ class DataTest(TestCase):
         self.assertEqual(d.version, '1')
         self.assertEqual(d.lineage, 'xxxx')
         self.assertEqual(d.value, 'value')
+
+
+    def test_IWorkInput(self):
+        """
+        You can make it into a WorkInput
+        """
+        d = Data('joe', 'a', '1', 'xxxx', 'value')
+        i = IWorkInput(d)
+        self.assertEqual(i.name, 'a')
+        self.assertEqual(i.version, '1')
+        self.assertEqual(i.lineage, 'xxxx')
+        self.assertEqual(i.value, 'value')
+        self.assertEqual(i.hash, sha1('value').hexdigest())
 
 
 
@@ -55,6 +109,18 @@ class WorkInputTest(TestCase):
         self.assertEqual(i.lineage, 'xxxx')
         self.assertEqual(i.value, 'val')
         self.assertEqual(i.hash, 'hash')
+
+
+    def test_IResultInput(self):
+        """
+        You can easily convert an IWorkInput to an IResultInput
+        """
+        i = WorkInput('a', '1', 'xxxx', 'val', 'hash')
+        r = IResultInput(i)
+        self.assertEqual(r.name, 'a')
+        self.assertEqual(r.version, '1')
+        self.assertEqual(r.lineage, 'xxxx')
+        self.assertEqual(r.hash, 'hash')
 
 
 
@@ -139,6 +205,19 @@ class ResultTest(TestCase):
             ResultInput('c', '1', 'xxxx', 'hash'),
             ResultInput('d', '1', 'xxxx', 'hash'),
         ), "Should convert all arguments to a ResultInput")
+
+
+    def test_IData(self):
+        """
+        You can easily convert an IResult to IData
+        """
+        r = Result('bob', 'a', '1', 'xxxx', 'val', [])
+        d = IData(r)
+        self.assertEqual(d.entity, 'bob')
+        self.assertEqual(d.name, 'a')
+        self.assertEqual(d.version, '1')
+        self.assertEqual(d.lineage, 'xxxx')
+        self.assertEqual(d.value, 'val')
 
 
 

@@ -9,7 +9,8 @@ from hashlib import sha1
 from garden.interface import (IGardener, IResultReceiver, IResultSource,
                               IDataSource, IDataReceiver, IWorkSource)
 from garden.store import InMemoryStore
-from garden.path import Garden, linealHash
+from garden.path import Garden
+from garden.data import linealHash
 from garden.gardener import (Gardener, InvalidResultFilter, DataStorer,
                              WorkMaker)
 from garden.test.fake import (FakeWorkReceiver, FakeDataReceiver,
