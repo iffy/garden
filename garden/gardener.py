@@ -5,7 +5,8 @@ from zope.interface import implements
 from hashlib import sha1
 from itertools import product
 
-from garden.interface import IGardener, IResultReceiver, IResultSource
+from garden.interface import (IGardener, IResultReceiver, IResultSource,
+                              IDataSource, IDataReceiver, IWorkSource)
 from garden.path import linealHash
 
 
@@ -16,6 +17,7 @@ def aggregateResult(deferred_list):
     of them succeed, this will callback with a list of the success results.
     """
     return defer.DeferredList(deferred_list, fireOnOneErrback=True, consumeErrors=True)
+
 
 
 
@@ -95,6 +97,116 @@ class InvalidResultFilter(object):
     def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
         return self.result_receiver.resultErrorReceived(entity, name, version,
                                                         lineage, error, inputs)
+
+
+
+class DataStorer(object):
+    """
+    I store data to a L{IDataStore} before passing it on.  And I only pass it
+    on if it has changed.
+    """
+
+    implements(IDataSource, IDataReceiver)
+
+
+    def __init__(self, store):
+        self.store = store
+
+
+    def setDataReceiver(self, receiver):
+        self.data_receiver = receiver
+
+
+    def dataReceived(self, entity, name, version, lineage, value):
+        """
+        XXX
+        """
+        d = self.store.put(entity, name, version, lineage, value)
+        d.addCallback(self._stored, entity, name, version, lineage, value)
+        return d
+
+
+    def _stored(self, result, entity, name, version, lineage, value):
+        if not result['changed']:
+            return
+        return self.data_receiver.dataReceived(entity, name, version, lineage,
+                                               value)
+
+
+
+class WorkMaker(object):
+    """
+    I spawn work based on data received.
+    """
+    
+    implements(IDataReceiver, IWorkSource)
+    
+    work_receiver = None
+
+    
+    def __init__(self, garden, store):
+        self.garden = garden
+        self.store = store
+
+
+    def setWorkReceiver(self, receiver):
+        self.work_receiver = receiver
+
+
+    def dataReceived(self, entity, name, version, lineage, value):
+        dlist = []
+        
+        for dst in self.garden.pathsRequiring(name, version):
+            d = self.doPossibleWork(entity, *dst)
+            dlist.append(d)
+        return aggregateResult(dlist)
+
+
+    def doPossibleWork(self, entity, name, version):
+        """
+        For the given C{entity}, compute the value of the given destination
+        for all paths for which the inputs are in my C{store}.
+        
+        @type entity: str
+        @param entity: Entity name
+        
+        @type name: str
+        @param name: Destination name
+        
+        @type version: str
+        @param version: Destination version
+        
+        @return: A C{Deferred} which will fire with a list of results of
+            dispatching the work.
+        """
+        input_lists = self.garden.inputsFor(name, version)
+        dlist = []
+        for input_list in input_lists:
+            values = [self.store.get(entity, x[0], x[1]) for x in input_list]
+            value_list = aggregateResult(values)
+            value_list.addCallback(self._gotValueList, entity, name, version)
+            value_list.addCallback(lambda r:[x[1] for x in r])
+            dlist.append(value_list)
+        return aggregateResult(dlist)
+
+
+    def _gotValueList(self, values, entity, name, version):
+        values = [x[1] for x in values]
+        dlist = []
+        for combination in product(*values):
+            lineages = [x[3] for x in combination]
+            d = self.dispatchSinglePieceOfWork(entity, name, version,
+                linealHash(name, version, lineages), list(combination))
+            dlist.append(d)
+        return aggregateResult(dlist)
+
+
+    def dispatchSinglePieceOfWork(self, entity, name, version, lineage, values):
+        # XXX magic numbers
+        values = [x[1:] + (sha1(x[4]).hexdigest(),) for x in values]
+        return self.work_receiver.workReceived(entity, name, version, lineage, values)
+
+
 
 
 class Gardener(object):
