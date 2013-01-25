@@ -1,6 +1,118 @@
 from zope.interface import Interface, Attribute
 
 
+class IInput(Interface):
+
+    entity = Attribute("Entity name")
+    name = Attribute("Data name")
+    version = Attribute("Data version")
+    value = Attribute("Data value")
+
+
+
+class IData(Interface):
+
+    entity = Attribute("Entity name")
+    name = Attribute("Data name")
+    version = Attribute("Data version")
+    lineage = Attribute("Data lineage")
+    value = Attribute("Data value")
+
+
+
+class IWork(Interface):
+
+    entity = Attribute("Entity name")
+    name = Attribute("Destination name")
+    version = Attribute("Destination version")
+    lineage = Attribute("Destination lineage")
+    inputs = Attribute("List of IWorkInputs")
+
+
+
+class IWorkInput(Interface):
+
+    name = Attribute("Data name")
+    version = Attribute("Data version")
+    lineage = Attribute("Data lineage")
+    value = Attribute("Data value")
+    hash = Attribute("Value hash")
+
+
+
+class IResult(Interface):
+
+    entity = Attribute("Entity name")
+    name = Attribute("Data name")
+    version = Attribute("Data version")
+    lineage = Attribute("Data lineage")
+    value = Attribute("Data value")
+    inputs = Attribute("List of IResultInputs")
+
+
+
+class IResultInput(Interface):
+
+    name = Attribute("Data name")
+    version = Attribute("Data version")
+    lineage = Attribute("Data lineage")
+    hash = Attribute("Value hash")
+
+
+
+class IResultError(Interface):
+
+    entity = Attribute("Entity name")
+    name = Attribute("Data name")
+    version = Attribute("Data version")
+    lineage = Attribute("Data lineage")
+    error = Attribute("Error string")
+    inputs = Attribute("List of IResultInputs")
+
+
+
+class ISource(Interface):
+
+
+    def addReceiver(receiver):
+        """
+        Add an IReceiver to be called with data of a particular interface.
+        
+        @type receiver: L{IReceiver}
+        """
+
+
+    def removeReceiver(receiver):
+        """
+        Remove an IReceiver.
+        
+        @type receiver: L{IReceiver}
+        """
+
+
+
+
+class IReceiver(Interface):
+
+
+    def receiverMapping():
+        """
+        Get a mapping of interfaces to the functions that should respond to
+        them.
+        
+        @return: A dict of the form::
+        
+            {
+                IResult: self.resultReceived,
+                ...
+            }
+        """
+
+
+
+
+
+
 
 class IDataStore(Interface):
 
