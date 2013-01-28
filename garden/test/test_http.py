@@ -13,9 +13,9 @@ from twisted.web.http_headers import Headers
 from twisted.web.http import parse_qs
 
 from garden.data import Input
-from garden.interface import IInputSource, IDataReceiver
+from garden.interface import IInput, ISource, ISourceable, IReceiver, IData
 from garden.http import WebInputSource, WebDataFeed
-from garden.test.fake import FakeInputReceiver
+from garden.test.fake import FakeReceiver
 
 import cgi
 from cgi import parse_header as _parseHeader
@@ -105,19 +105,9 @@ def _render(resource, request):
 class WebInputSourceTest(TestCase):
 
 
-    def test_IInputSource(self):
-        verifyObject(IInputSource, WebInputSource())
-
-
-    def test_setInputReceiver(self):
-        """
-        Should have an input_receiver attribute that you can set with
-        setInputReceiver
-        """
-        w = WebInputSource()
-        self.assertEqual(w.input_receiver, None)
-        w.setInputReceiver('foo')
-        self.assertEqual(w.input_receiver, 'foo')
+    def test_ISourceable(self):
+        verifyObject(ISourceable, WebInputSource())
+        self.assertTrue(IInput in WebInputSource.sourceInterfaces)
 
 
     def test_render_POST(self):
@@ -125,12 +115,10 @@ class WebInputSourceTest(TestCase):
         It should give input to the input_receiver that it receives over
         POST
         """
-        receiver = FakeInputReceiver()
-        d = defer.Deferred()
-        receiver.inputReceived.mock.side_effect = lambda *a: d
+        receiver = FakeReceiver([IInput], lambda x: defer.Deferred())
         
         w = WebInputSource()
-        w.setInputReceiver(receiver)
+        ISource(w).subscribe(receiver)
         
         data = {
             'entity': 'Joe',
@@ -147,9 +135,9 @@ class WebInputSourceTest(TestCase):
         self.assertFalse(result.called, "Should not be done yet because the "
                          "InputReceiver hasn't acknowledged receipt yet")
         
-        receiver.inputReceived.assert_called_once_with(Input('Joe', 'cake', '1',
+        receiver.receive.assert_called_once_with(Input('Joe', 'cake', '1',
                 'abc123!@#&=_ \x00\x01\x02'))
-        d.callback('foo')
+        receiver.results[-1].callback('foo')
         self.assertTrue(result.called, "Should have a result now")
         self.assertTrue(request.write.call_count > 0, "Should have written "
                         "something as a response")
@@ -159,10 +147,10 @@ class WebInputSourceTest(TestCase):
 class WebDataFeedTest(TestCase):
 
 
-    def test_IDataReceiver(self):
-        verifyObject(IDataReceiver, WebDataFeed())
+    def test_IReceiver(self):
+        feed = WebDataFeed()
+        verifyObject(IReceiver, feed)
+        mapping = feed.receiverMapping()
+        self.assertEqual(mapping[IData], feed.dataReceived)
 
 
-
-        
-        

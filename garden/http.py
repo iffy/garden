@@ -6,21 +6,16 @@ from zope.interface import implements
 import json
 
 from garden.data import Input
-from garden.interface import IInputSource, IDataReceiver
+from garden.interface import IReceiver, ISourceable, IInput, ISource, IData
 
 
 
 class WebInputSource(Resource):
     
-    implements(IInputSource)
-    
-    input_receiver = None
-    
-    
-    def setInputReceiver(self, receiver):
-        self.input_receiver = receiver
+    implements(ISourceable)
+    sourceInterfaces = IInput,
 
-
+    
     def render_GET(self, request):
         return '''
         <html>
@@ -41,8 +36,7 @@ class WebInputSource(Resource):
         version = request.args['version'][0]
         value = request.args['value'][0]
         
-        res = self.input_receiver.inputReceived(Input(entity, name, version,
-                                                      value))
+        res = ISource(self).emit(Input(entity, name, version, value))
         def received(result):
             request.write('success')
             request.finish()
@@ -60,12 +54,18 @@ def sseMsg(name, data):
 
 class WebDataFeed(Resource):
 
-    implements(IDataReceiver)
+    implements(IReceiver)
 
 
     def __init__(self):
         Resource.__init__(self)
         self.spectators = set()
+
+
+    def receiverMapping(self):
+        return {
+            IData: self.dataReceived,
+        }
 
 
     def render_GET(self, request):
