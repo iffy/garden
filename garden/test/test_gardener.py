@@ -7,10 +7,11 @@ from mock import create_autospec, call
 from hashlib import sha1
 
 from garden.interface import (IGardener, IResultReceiver, IResultSource,
-                              IDataSource, IDataReceiver, IWorkSource)
+                              IDataSource, IDataReceiver, IWorkSource,
+                              IData)
 from garden.store import InMemoryStore
 from garden.path import Garden
-from garden.data import linealHash
+from garden.data import linealHash, Input, Data, Result, ResultError, Work
 from garden.gardener import (Gardener, InvalidResultFilter, DataStorer,
                              WorkMaker)
 from garden.test.fake import (FakeWorkReceiver, FakeDataReceiver,
@@ -22,18 +23,16 @@ class GardenerTest(TestCase):
 
 
     def test_IGardener(self):
-        verifyClass(IGardener, Gardener)
-        verifyObject(IGardener, Gardener(None, None, None))
+        verifyObject(IGardener, Gardener(None, None))
 
 
     def test_init(self):
         """
         You can initialize with some things a Gardener needs.
         """
-        g = Gardener('garden', 'store', accept_all_lineages=True)
+        g = Gardener('garden', 'store')
         self.assertEqual(g.garden, 'garden')
         self.assertEqual(g.store, 'store')
-        self.assertEqual(g.accept_all_lineages, True)
 
 
     def test_setWorkReceiver(self):
@@ -44,406 +43,6 @@ class GardenerTest(TestCase):
         self.assertEqual(g.work_receiver, None)
         g.setWorkReceiver('foo')
         self.assertEqual(g.work_receiver, 'foo')
-
-
-    def test_inputReceived(self):
-        """
-        When input is received, it should compute the lineage and call
-        dataReceived.
-        """
-        g = Gardener(Garden(), 'store', accept_all_lineages=True)
-        
-        # fake out dataReceived, which is tested separately
-        ret = defer.Deferred()
-        g.dataReceived = create_autospec(g.dataReceived, return_value=ret)
-        
-        r = g.inputReceived('joe', 'name', 'version', 'zoom')
-        g.dataReceived.assert_called_once_with('joe', 'name', 'version',
-                                               linealHash('name', 'version'),
-                                               'zoom')        
-        ret.callback('foo')
-        self.assertEqual(self.successResultOf(r), 'foo')
-
-
-    def test_resultReceived(self):
-        """
-        When a result is received, it should just call dataReceived
-        """
-        store = InMemoryStore()
-        store.put('Toad', 'water', '1', 'aaaa', 'wet')
-        
-        garden = Garden()
-        garden.addPath('ice', '1', [
-            ('water', '1'),
-        ])
-        
-        g = Gardener(garden, store, accept_all_lineages=True)
-        
-        ret = defer.succeed('done')
-        g.dataReceived = create_autospec(g.dataReceived, return_value=ret)
-        
-        r = g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
-            ('water', '1', 'aaaa', sha1('wet').hexdigest()),
-        ])
-        g.dataReceived.assert_called_once_with('Toad', 'ice', '1', 'bbbb',
-                                               'the result')
-        self.assertEqual(self.successResultOf(r), 'done')
-
-
-    def test_resultReceived_inputsChanged(self):
-        """
-        When a result is received, if the inputs used to make the result aren't
-        the same now, then don't call dataReceived and consider the result
-        received immediately.
-        """
-        store = InMemoryStore()
-        store.put('Toad', 'water', '1', 'aaaa', 'wet')
-        
-        garden = Garden()
-        garden.addPath('ice', '1', [
-            ('water', '1'),
-        ])
-        
-        g = Gardener(garden, store, accept_all_lineages=True)
-        
-        g.dataReceived = create_autospec(g.dataReceived)
-        
-        g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
-            ('water', '1', 'aaaa', 'NOT THE RIGHT HASH'),
-        ])
-        self.assertEqual(g.dataReceived.call_count, 0, "Should not have called"
-                         " dataReceived, because the input hash doesn't match")
-
-
-    def test_resultReceived_storeError(self):
-        """
-        If there's a problem getting data out of the store while receiving a
-        result, then fail the resultReceived call.
-        """
-        store = InMemoryStore()
-        store.get = create_autospec(store.get, side_effect=lambda *a: defer.fail(Exception('foo')))
-        
-        garden = Garden()
-        
-        g = Gardener(garden, store, accept_all_lineages=True)
-        
-        g.dataReceived = create_autospec(g.dataReceived)
-        
-        r = g.resultReceived('Toad', 'ice', '1', 'bbbb', 'the result', [
-            ('water', '1', 'aaaa', 'NOT THE RIGHT HASH'),
-        ])
-        self.assertEqual(g.dataReceived.call_count, 0, "Should not have called"
-                         " dataReceived, because the input hash doesn't match")
-        self.assertFailure(r, Exception)
-
-
-    def test_resultErrorReceived(self):
-        """
-        For now, drop the error silently on the floor.
-        """
-        g = Gardener(None, None, None)
-        r = g.resultErrorReceived('Atticus', 'verdict', '2', 'aaaa', 'objection',
-                                [])
-        self.assertTrue(r.called, "Errors are silently ignored right now")
-
-
-    def test_dataReceived(self):
-        """
-        Should store the data, then call doPossibleWork for all destinations
-        for which the received data is an input.
-        """
-        store = InMemoryStore()
-        store.put('Frog', 'eggs', '1', 'aaaa', 'eggs value')
-        
-        garden = Garden()
-        garden.addPath('cake', '1', [
-            ('eggs', '1'),
-            ('flour', '1'),
-        ])
-        garden.addPath('german pancake', '1', [
-            ('eggs', '1'),
-            ('flour', '1'),
-        ])
-        
-        g = Gardener(garden, store, accept_all_lineages=True)
-        g.doPossibleWork = create_autospec(g.doPossibleWork,
-                               side_effect=(lambda *x: defer.succeed(['hey'])))
-        r = g.dataReceived('Frog', 'flour', '1', 'bbbb', 'flour value')
-        
-        v = store.get('Frog', 'flour', '1')
-        self.assertEqual(self.successResultOf(v), [
-            ('Frog', 'flour', '1', 'bbbb', 'flour value'),
-        ], "Should have store the data in the store")
-        
-        g.doPossibleWork.assert_has_calls([
-            call('Frog', 'cake', '1'),
-            call('Frog', 'german pancake', '1'),
-        ])
-        self.assertTrue(r.called)
-        return r
-
-
-    def test_dataReceived_waitForStorage(self):
-        """
-        doPossibleWork shouldn't be called until the data is stored.
-        """
-        store = InMemoryStore()
-        d = defer.Deferred()
-        store.put = create_autospec(store.put, return_value=d)
-        
-        garden = Garden()
-        garden.addPath('cooked eggs', '1', [
-            ('eggs', '1'),
-        ])
-        
-        g = Gardener(garden, store, accept_all_lineages=True)
-        g.doPossibleWork = create_autospec(g.doPossibleWork,
-                               side_effect=(lambda *x: defer.succeed('hey')))
-        g.dataReceived('Frog', 'eggs', '1', 'bbbb', 'flour value')
-        
-        self.assertEqual(g.doPossibleWork.call_count, 0, "Should not have "
-                         "started doing work before the data is stored")
-        d.callback({'changed': True})
-        self.assertEqual(g.doPossibleWork.call_count, 1)
-
-
-    def test_dispatchSinglePieceOfWork(self):
-        """
-        Dispatching a single function call through this function will result
-        in the hashes being added to the function.
-        """
-        sender = FakeWorkReceiver()
-        ret = defer.Deferred()
-        sender.workReceived.mock.side_effect = lambda *x: ret
-        
-        g = Gardener(None, None)
-        g.setWorkReceiver(sender)
-        r = g.dispatchSinglePieceOfWork('Bob', 'name', 'version', 'aaaa', [
-            ('Bob', 'arg1', '1', 'aaaa', 'arg1 value'),
-            ('Bob', 'arg2', '1', 'bbbb', 'arg2 value'),
-        ])
-        
-        sender.workReceived.assert_called_once_with(
-            'Bob', 'name', 'version', 'aaaa', [
-            ('arg1', '1', 'aaaa', 'arg1 value', sha1('arg1 value').hexdigest()),
-            ('arg2', '1', 'bbbb', 'arg2 value', sha1('arg2 value').hexdigest()),
-            ]
-        )
-                
-        ret.callback('foo')
-        self.assertEqual(self.successResultOf(r), 'foo')
-
-
-    def mkCakeSetup(self):
-        store = InMemoryStore()
-        store = InMemoryStore()
-        
-        garden = Garden()
-        garden.addPath('cake', '1', [
-            ('eggs', '1'),
-            ('flour', '1'),
-        ])
-        garden.addPath('cake', '1', [
-            ('eggs', '1'),
-            ('flour', 'new'),
-        ])
-        
-        def returner(*args):
-            return defer.succeed('hello?')
-        
-        g = Gardener(garden, store, accept_all_lineages=True)
-        g.dispatchSinglePieceOfWork = create_autospec(
-            g.dispatchSinglePieceOfWork, side_effect=returner)
-        
-        return store, garden, g
-
-
-    def test_doPossibleWork_nothing(self):
-        """
-        If there's no data, do no work.
-        """
-        store, garden, g = self.mkCakeSetup()
-        
-        r = g.doPossibleWork('sam', 'cake', '1')
-        self.assertTrue(r.called)
-        return r
-
-
-    def test_doPossibleWork_simple(self):
-        """
-        If there's enough data to do one piece of work, do that.
-        """
-        store, garden, g = self.mkCakeSetup()
-        
-        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
-        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
-                
-        r = g.doPossibleWork('sam', 'cake', '1')
-        g.dispatchSinglePieceOfWork.assert_called_once_with(
-            'sam', 'cake', '1',
-            linealHash('cake', '1', ['aaaa', 'bbbb']),
-            [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-             ('sam', 'flour', '1', 'bbbb', 'flour value')]
-        )
-
-        self.assertTrue(r.called)
-        return r
-
-
-    def test_doPossibleWork_multiLineage(self):
-        """
-        If there's data of multiple lineages, do work for both lineages.
-        """
-        store, garden, g = self.mkCakeSetup()
-
-        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
-        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
-        store.put('sam', 'flour', '1', 'cccc', 'flour value 2')
-        
-        r = g.doPossibleWork('sam', 'cake', '1')
-        g.dispatchSinglePieceOfWork.assert_has_calls([
-            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
-                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-                 ('sam', 'flour', '1', 'bbbb', 'flour value')]),
-            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'cccc']),
-                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-                 ('sam', 'flour', '1', 'cccc', 'flour value 2')]),
-        ])
-        self.assertEqual(g.dispatchSinglePieceOfWork.call_count, 2)
-        self.assertEqual(len(self.successResultOf(r)), 2)
-
-
-    def test_doPossibleWork_multiPath(self):
-        """
-        If there's data for multiple paths, do work for all paths.
-        """
-        store, garden, g = self.mkCakeSetup()
-
-        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
-        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
-        store.put('sam', 'flour', 'new', 'cccc', 'flour value 2')
-        
-        r = g.doPossibleWork('sam', 'cake', '1')
-        g.dispatchSinglePieceOfWork.assert_has_calls([
-            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
-                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-                 ('sam', 'flour', '1', 'bbbb', 'flour value')]),
-            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'cccc']),
-                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-                 ('sam', 'flour', 'new', 'cccc', 'flour value 2')]),
-        ])
-        self.assertEqual(g.dispatchSinglePieceOfWork.call_count, 2)
-        self.assertEqual(len(self.successResultOf(r)), 2)
-
-
-    def test_dataReceived_errorReceiving(self):
-        """
-        If the work_receiver errsback on receiving any of the pieces of work,
-        the whole dataReceived call should also errback.
-        """
-        store = InMemoryStore()
-        
-        garden = Garden()
-        garden.addPath('cake', '1', [
-            ('eggs', '1'),
-        ])
-        garden.addPath('cake', '2', [
-            ('eggs', '1'),
-        ])
-        
-        receiver = FakeWorkReceiver()
-        receiver.workReceived.mock.side_effect = lambda *a: defer.fail(Exception('foo'))
-        
-        g = Gardener(garden, store, accept_all_lineages=True)
-        g.setWorkReceiver(receiver)
-        
-        r = g.dataReceived('Jim', 'eggs', '1', 'xxxx', 'value')
-        self.assertFailure(r, Exception)
-
-
-    def test_dataReceived_errorFetchingData(self):
-        """
-        If there's an error getting data for computing, the whole call should
-        fail
-        """
-        store = InMemoryStore()
-        store.get = create_autospec(store.get, side_effect=lambda *a: defer.fail(Exception('foo')))
-        
-        garden = Garden()
-        garden.addPath('cake', '1', [
-            ('eggs', '1'),
-        ])
-        
-        g = Gardener(garden, store, accept_all_lineages=True)
-        
-        r = g.dataReceived('Jim', 'eggs', '1', 'xxxx', 'value')
-        self.assertFailure(r, Exception)
-        return r.addErrback(lambda x:None)
-
-
-    def test_setDataReceiver(self):
-        """
-        You can add something to receive new data
-        """
-        g = Gardener(None, None)
-        self.assertEqual(g.data_receiver, None)
-        g.setDataReceiver('foo')
-        self.assertEqual(g.data_receiver, 'foo')
-
-
-    def test_dataReceived_dataReceiver(self):
-        """
-        If there is an attached IDataReceiver, then send them all new data.
-        """
-        store = InMemoryStore()
-        
-        receiver = FakeDataReceiver()
-        d = defer.Deferred()
-        receiver.dataReceived.mock.side_effect = lambda *a: d
-        
-        g = Gardener(Garden(), store)
-        g.setDataReceiver(receiver)
-        
-        r = g.dataReceived('joe', 'cake', '1', 'xxxx', 'value')
-        result = []
-        r.addCallback(result.append)
-        receiver.dataReceived.assert_called_once_with('joe', 'cake', '1',
-                                                      'xxxx', 'value')
-        stored_val = self.successResultOf(store.get('joe'))
-        self.assertEqual(len(stored_val), 1, "Should have stored the result at this point")
-        self.assertEqual(result, [], "Should not have finished yet, since the "
-                         "data receiver hasn't acknowledged receipt")
-        
-        d.callback('foo')
-        self.assertTrue(result, "Should have finished now")
-
-
-    def test_dataReceived_data_receiver_unchangedData(self):
-        """
-        If data isn't different than before, don't send it off to the other
-        IDataReceiver and don't spawn any work
-        """
-        store = InMemoryStore()
-        store.put('joe', 'cake', '1', 'xxxx', 'value')
-        
-        receiver = FakeDataReceiver()
-        d = defer.Deferred()
-        receiver.dataReceived.mock.side_effect = lambda *a: d
-        
-        g = Gardener(Garden(), store)
-        g.setDataReceiver(receiver)
-        g.doPossibleWork = create_autospec(g.doPossibleWork)
-        
-        r = g.dataReceived('joe', 'cake', '1', 'xxxx', 'value')
-        result = []
-        r.addCallback(result.append)
-        self.assertEqual(receiver.dataReceived.call_count, 0, "Should not send "
-                         "unchanged data")
-        self.assertEqual(g.doPossibleWork.call_count, 0, "Should not spawn new "
-                         "work since the the result won't change, because the "
-                         "functions are expected to be pure")
-        self.assertTrue(result, "Should have called back immediately")                         
-
 
 
 
@@ -477,7 +76,7 @@ class InvalidResultFilterTest(TestCase):
         it is based are still valid.
         """
         store = InMemoryStore()
-        store.put('joe', 'cake', '1', 'xxxx', 'chocolate')
+        store.put(Data('joe', 'cake', '1', 'xxxx', 'chocolate'))
         
         garden = Garden()
         garden.addPath('happiness', '1', [
@@ -491,21 +90,19 @@ class InvalidResultFilterTest(TestCase):
         f.setResultReceiver(receiver)
         
         # receive a result not based on the correct input value
-        r = f.resultReceived('joe', 'happiness', '1', 'bbbb', 'yes', [
+        r = f.resultReceived(Result('joe', 'happiness', '1', 'bbbb', 'yes', [
             ('cake', '1', 'xxxx', sha1('vanilla').hexdigest()),
-        ])
+        ]))
         self.assertEqual(receiver.resultReceived.call_count, 0, "Should not "
                          "have passed the result on")
         self.assertTrue(r.called)
         
         # receive a valid result (based on the current input value)
-        r = f.resultReceived('joe', 'happiness', '1', 'bbbb', 'yes', [
+        result = Result('joe', 'happiness', '1', 'bbbb', 'yes', [
             ('cake', '1', 'xxxx', sha1('chocolate').hexdigest()),
         ])
-        receiver.resultReceived.assert_called_once_with('joe', 'happiness', '1',
-            'bbbb', 'yes', [
-                ('cake', '1', 'xxxx', sha1('chocolate').hexdigest()),
-            ])
+        r = f.resultReceived(result)
+        receiver.resultReceived.assert_called_once_with(result)
         self.assertEqual(self.successResultOf(r), 'a')
 
 
@@ -515,7 +112,7 @@ class InvalidResultFilterTest(TestCase):
         correspond to a valid path in the garden, don't send the input on.
         """
         store = InMemoryStore()
-        store.put('joe', 'money', '1', 'xxxx', 'lots')
+        store.put(Data('joe', 'money', '1', 'xxxx', 'lots'))
         
         garden = Garden()
         garden.addPath('happiness', '1', [
@@ -527,9 +124,9 @@ class InvalidResultFilterTest(TestCase):
         f = InvalidResultFilter(garden, store)
         f.setResultReceiver(receiver)
         
-        r = f.resultReceived('joe', 'happiness', '1', 'bbbb', 'yes', [
+        r = f.resultReceived(Result('joe', 'happiness', '1', 'bbbb', 'yes', [
             ('money', '1', 'xxxx', sha1('lots').hexdigest()),
-        ])
+        ]))
         self.assertEqual(receiver.resultReceived.call_count, 0, "Should not "
                          "send the result on, because money doesn't produce "
                          "happiness in this garden.  Only cake does that")
@@ -545,9 +142,9 @@ class InvalidResultFilterTest(TestCase):
         f = InvalidResultFilter(None, None)
         f.setResultReceiver(receiver)
         
-        r = f.resultErrorReceived('joe', 'happiness', '1', 'bbbb', 'error', [])
-        receiver.resultErrorReceived.assert_called_once_with('joe', 'happiness',
-            '1', 'bbbb', 'error', [])
+        err = ResultError('joe', 'happiness', '1', 'bbbb', 'error', [])
+        r = f.resultErrorReceived(err)
+        receiver.resultErrorReceived.assert_called_once_with(err)
         self.assertTrue(r.called)
 
 
@@ -578,14 +175,14 @@ class DataStorerTest(TestCase):
         s = DataStorer(store)
         s.setDataReceiver(fake)
         
-        result = s.dataReceived('sam', 'cake', '1', 'xxxx', 'value')
+        data = Data('sam', 'cake', '1', 'xxxx', 'value')
+        result = s.dataReceived(data)
         self.assertEqual(fake.dataReceived.call_count, 0, "Should not have "
                          "passed the data on because it hasn't been stored yet")
-        store.put.assert_called_once_with('sam', 'cake', '1', 'xxxx', 'value')
+        store.put.assert_called_once_with(data)
         self.assertFalse(result.called)
         store_d.callback({'changed': True})
-        fake.dataReceived.assert_called_once_with('sam', 'cake', '1', 'xxxx',
-                                                  'value')
+        fake.dataReceived.assert_called_once_with(data)
         self.assertEqual(self.successResultOf(result), 'joe', "Should return "
                          "whatever the other receiver returns")
 
@@ -595,14 +192,14 @@ class DataStorerTest(TestCase):
         Don't pass data along if it's unchanged.
         """
         store = InMemoryStore()
-        store.put('ham', 'cake', '1', 'xxxx', 'value')
+        store.put(Data('ham', 'cake', '1', 'xxxx', 'value'))
         
         fake = FakeDataReceiver()
         
         s = DataStorer(store)
         s.setDataReceiver(fake)
         
-        s.dataReceived('ham', 'cake', '1', 'xxxx', 'value')
+        s.dataReceived(Data('ham', 'cake', '1', 'xxxx', 'value'))
         self.assertEqual(fake.dataReceived.call_count, 0, "Should not pass "
                          "along unchanged data")
 
@@ -637,7 +234,7 @@ class WorkMakerTest(TestCase):
         w = WorkMaker(garden, None)
         w.doPossibleWork = create_autospec(w.doPossibleWork,
                                side_effect=(lambda *x: defer.succeed(['hey'])))
-        r = w.dataReceived('Frog', 'flour', '1', 'bbbb', 'flour value')
+        r = w.dataReceived(Data('Frog', 'flour', '1', 'bbbb', 'flour value'))
         
         w.doPossibleWork.assert_has_calls([
             call('Frog', 'cake', '1'),
@@ -645,33 +242,6 @@ class WorkMakerTest(TestCase):
         ])
         self.assertTrue(r.called)
         return r
-
-
-    def test_dispatchSinglePieceOfWork(self):
-        """
-        Dispatching a single function call through this function will result
-        in the hashes being added to the function.
-        """
-        sender = FakeWorkReceiver()
-        ret = defer.Deferred()
-        sender.workReceived.mock.side_effect = lambda *x: ret
-        
-        w = WorkMaker(None, None)
-        w.setWorkReceiver(sender)
-        r = w.dispatchSinglePieceOfWork('Bob', 'name', 'version', 'aaaa', [
-            ('Bob', 'arg1', '1', 'aaaa', 'arg1 value'),
-            ('Bob', 'arg2', '1', 'bbbb', 'arg2 value'),
-        ])
-        
-        sender.workReceived.assert_called_once_with(
-            'Bob', 'name', 'version', 'aaaa', [
-            ('arg1', '1', 'aaaa', 'arg1 value', sha1('arg1 value').hexdigest()),
-            ('arg2', '1', 'bbbb', 'arg2 value', sha1('arg2 value').hexdigest()),
-            ]
-        )
-                
-        ret.callback('foo')
-        self.assertEqual(self.successResultOf(r), 'foo')
 
 
     def mkCakeSetup(self):
@@ -687,22 +257,20 @@ class WorkMakerTest(TestCase):
             ('eggs', '1'),
             ('flour', 'new'),
         ])
-        
-        def returner(*args):
-            return defer.succeed('hello?')
+
+        fake = FakeWorkReceiver()
         
         w = WorkMaker(garden, store)
-        w.dispatchSinglePieceOfWork = create_autospec(
-            w.dispatchSinglePieceOfWork, side_effect=returner)
+        w.setWorkReceiver(fake)
         
-        return store, garden, w
+        return store, garden, w, fake
 
 
     def test_doPossibleWork_nothing(self):
         """
         If there's no data, do no work.
         """
-        store, garden, w = self.mkCakeSetup()
+        store, garden, w, recv = self.mkCakeSetup()
         
         r = w.doPossibleWork('sam', 'cake', '1')
         self.assertTrue(r.called)
@@ -713,18 +281,17 @@ class WorkMakerTest(TestCase):
         """
         If there's enough data to do one piece of work, do that.
         """
-        store, garden, w = self.mkCakeSetup()
+        store, garden, w, recv = self.mkCakeSetup()
         
-        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
-        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
+        store.put(Data('sam', 'eggs', '1', 'aaaa', 'eggs value'))
+        store.put(Data('sam', 'flour', '1', 'bbbb', 'flour value'))
                 
         r = w.doPossibleWork('sam', 'cake', '1')
-        w.dispatchSinglePieceOfWork.assert_called_once_with(
-            'sam', 'cake', '1',
+        recv.workReceived.assert_called_once_with(Work('sam', 'cake', '1',
             linealHash('cake', '1', ['aaaa', 'bbbb']),
-            [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-             ('sam', 'flour', '1', 'bbbb', 'flour value')]
-        )
+            [('eggs', '1', 'aaaa', 'eggs value'),
+             ('flour', '1', 'bbbb', 'flour value')]
+        ))
 
         self.assertTrue(r.called)
         return r
@@ -734,22 +301,22 @@ class WorkMakerTest(TestCase):
         """
         If there's data of multiple lineages, do work for both lineages.
         """
-        store, garden, w = self.mkCakeSetup()
+        store, garden, w, recv = self.mkCakeSetup()
 
-        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
-        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
-        store.put('sam', 'flour', '1', 'cccc', 'flour value 2')
+        store.put(Data('sam', 'eggs', '1', 'aaaa', 'eggs value'))
+        store.put(Data('sam', 'flour', '1', 'bbbb', 'flour value'))
+        store.put(Data('sam', 'flour', '1', 'cccc', 'flour value 2'))
         
         r = w.doPossibleWork('sam', 'cake', '1')
-        w.dispatchSinglePieceOfWork.assert_has_calls([
-            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
-                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-                 ('sam', 'flour', '1', 'bbbb', 'flour value')]),
-            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'cccc']),
-                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-                 ('sam', 'flour', '1', 'cccc', 'flour value 2')]),
+        recv.workReceived.assert_has_calls([
+            call(Work('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
+                [('eggs', '1', 'aaaa', 'eggs value'),
+                 ('flour', '1', 'bbbb', 'flour value')])),
+            call(Work('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'cccc']),
+                [('eggs', '1', 'aaaa', 'eggs value'),
+                 ('flour', '1', 'cccc', 'flour value 2')])),
         ])
-        self.assertEqual(w.dispatchSinglePieceOfWork.call_count, 2)
+        self.assertEqual(recv.workReceived.call_count, 2)
         self.assertEqual(len(self.successResultOf(r)), 2)
 
 
@@ -757,22 +324,22 @@ class WorkMakerTest(TestCase):
         """
         If there's data for multiple paths, do work for all paths.
         """
-        store, garden, w = self.mkCakeSetup()
+        store, garden, w, recv = self.mkCakeSetup()
 
-        store.put('sam', 'eggs', '1', 'aaaa', 'eggs value')
-        store.put('sam', 'flour', '1', 'bbbb', 'flour value')
-        store.put('sam', 'flour', 'new', 'cccc', 'flour value 2')
+        store.put(Data('sam', 'eggs', '1', 'aaaa', 'eggs value'))
+        store.put(Data('sam', 'flour', '1', 'bbbb', 'flour value'))
+        store.put(Data('sam', 'flour', 'new', 'cccc', 'flour value 2'))
         
         r = w.doPossibleWork('sam', 'cake', '1')
-        w.dispatchSinglePieceOfWork.assert_has_calls([
-            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
-                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-                 ('sam', 'flour', '1', 'bbbb', 'flour value')]),
-            call('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'cccc']),
-                [('sam', 'eggs', '1', 'aaaa', 'eggs value'),
-                 ('sam', 'flour', 'new', 'cccc', 'flour value 2')]),
+        recv.workReceived.assert_has_calls([
+            call(Work('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
+                [('eggs', '1', 'aaaa', 'eggs value'),
+                 ('flour', '1', 'bbbb', 'flour value')])),
+            call(Work('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'cccc']),
+                [('eggs', '1', 'aaaa', 'eggs value'),
+                 ('flour', 'new', 'cccc', 'flour value 2')])),
         ])
-        self.assertEqual(w.dispatchSinglePieceOfWork.call_count, 2)
+        self.assertEqual(recv.workReceived.call_count, 2)
         self.assertEqual(len(self.successResultOf(r)), 2)
 
 
@@ -782,7 +349,7 @@ class WorkMakerTest(TestCase):
         the whole dataReceived call should also errback.
         """
         store = InMemoryStore()
-        store.put('Jim', 'eggs', '1', 'xxxx', 'value')
+        store.put(Data('Jim', 'eggs', '1', 'xxxx', 'value'))
         
         garden = Garden()
         garden.addPath('cake', '1', [
@@ -798,7 +365,7 @@ class WorkMakerTest(TestCase):
         w = WorkMaker(garden, store)
         w.setWorkReceiver(receiver)
         
-        r = w.dataReceived('Jim', 'eggs', '1', 'xxxx', 'value')
+        r = w.dataReceived(Data('Jim', 'eggs', '1', 'xxxx', 'value'))
         self.assertFailure(r, Exception)
 
 
@@ -817,7 +384,7 @@ class WorkMakerTest(TestCase):
         
         w = WorkMaker(garden, store)
         
-        r = w.dataReceived('Jim', 'eggs', '1', 'xxxx', 'value')
+        r = w.dataReceived(Data('Jim', 'eggs', '1', 'xxxx', 'value'))
         self.assertFailure(r, Exception)
         return r.addErrback(lambda x:None)
                         

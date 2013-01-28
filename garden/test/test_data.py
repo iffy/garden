@@ -123,6 +123,14 @@ class WorkInputTest(TestCase):
         self.assertEqual(r.hash, 'hash')
 
 
+    def test_computeHash(self):
+        """
+        If not provided, the hash should be computed.
+        """
+        i = WorkInput('a', '1', 'xxxx', 'val')
+        self.assertEqual(i.hash, sha1('val').hexdigest())
+
+
 
 class WorkTest(TestCase):
 

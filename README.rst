@@ -93,7 +93,7 @@ each other:
 .. code:: python
 
     >>> from garden.gardener import Gardener
-    >>> gardener = Gardener(garden, store, accept_all_lineages=True)
+    >>> gardener = Gardener(garden, store)
     >>> gardener.setWorkReceiver(worker)
     >>> worker.setResultReceiver(gardener)
 
@@ -103,12 +103,13 @@ Now give the ``Gardener`` some data about Frodo's progress in the class:
 
 .. code:: python
 
-    >>> gardener.inputReceived('Frodo', 'assignments', 'v1', '0.5')
+    >>> from garden.data import Input
+    >>> gardener.inputReceived(Input('Frodo', 'assignments', 'v1', '0.5'))
     <Deferred...>
 
 .. code:: python
 
-    >>> gardener.inputReceived('Frodo', 'exams', 'v1', '0.9')
+    >>> gardener.inputReceived(Input('Frodo', 'exams', 'v1', '0.9'))
     <Deferred...>
 
 
@@ -117,12 +118,12 @@ And see that the grade was computed:
 .. code:: python
 
     >>> store.get('Frodo', 'percent', 'v1').result
-    [('Frodo', 'percent', 'v1', ... '0.74')]
+    [Data('Frodo', 'percent', 'v1', ... '0.74')]
 
 .. code:: python
 
     >>> store.get('Frodo', 'letter', 'v1').result
-    [('Frodo', 'letter', 'v1', ... 'B')]
+    [Data('Frodo', 'letter', 'v1', ... 'B')]
 
 
 Are you kidding me?

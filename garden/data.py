@@ -88,13 +88,18 @@ class WorkInput(namedtuple('WorkInput', ['name', 'version', 'lineage', 'value', 
     See L{IWorkInput} for a description of my attributes.
     """
     implements(IWorkInput)
+    
+    def __new__(cls, name, version, lineage, value, hash=None):
+        if not hash:
+            hash = sha1(value).hexdigest()
+        return cls.__bases__[0].__new__(cls, name, version, lineage, value, hash)
 
 
 def adaptDataToWorkInput(d):
     """
     Convert an L{IData} into a L{WorkInput}
     """
-    return WorkInput(d.name, d.version, d.lineage, d.value, sha1(d.value).hexdigest())
+    return WorkInput(d.name, d.version, d.lineage, d.value)
 components.registerAdapter(adaptDataToWorkInput, IData, IWorkInput)
 
 
