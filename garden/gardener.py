@@ -5,8 +5,9 @@ from zope.interface import implements
 from hashlib import sha1
 from itertools import product
 
-from garden.interface import (IGardener, IWorkInput, IWork, IData, ISource,
-                              ISourceable, IResult, IResultError, IReceiver)
+from garden.interface import (IGardener, IWorkInput, IWork, IInput, IData,
+                              ISource, ISourceable, IResult, IResultError,
+                              IReceiver)
 from garden.data import linealHash, Work
 
 
@@ -201,84 +202,93 @@ class WorkMaker(object):
 
 
 
+class ToDataConverter(object):
+    """
+    I convert Results and Inputs to Data and drop IResultErrors on the floor.
+    """
+    
+    implements(IReceiver, ISourceable)
+    sourceInterfaces = (IData,)
+    
+    
+    def receiverMapping(self):
+        return {
+            IResult: self.dataReceived,
+            IResultError: self.resultErrorReceived,
+            IInput: self.dataReceived,
+        }
+
+
+    def dataReceived(self, result):
+        return ISource(self).emit(IData(result))
+
+
+    def resultErrorReceived(self, error):
+        # XXX this should be logged instead of silently dropped
+        pass
+
+
+
 class Gardener(object):
     """
     I coordinate work based on new data.
     
     I am currently not test driven, except for the functional test that is the
     README :(
-    
-    @ivar work_receiver: The L{IWorkReceiver} instance responsible for receiving
-        the work I produce.
-    
-    @ivar data_receiver: The L{IDataReceiver} instance that will receive
-        all new data.
     """
     
     implements(IGardener)
-    
-    
-    work_receiver = None
-    data_receiver = None
+    sourceInterfaces = (IData, IWork)
     
     
     def __init__(self, garden, store):
         self.garden = garden
         self.store = store
+        
+        # the chain
         self.result_filter = InvalidResultFilter(garden, store)
+        self.to_data = ToDataConverter()        
         self.storer = DataStorer(store)
         self.work_maker = WorkMaker(garden, store)
-        self.storer.setDataReceiver(self.work_maker)
+        
+        ISource(self.result_filter).subscribe(self.to_data)
+        ISource(self.to_data).subscribe(self.storer)
+        ISource(self.storer).subscribe(self.work_maker)
+        ISource(self.work_maker).subscribe(self)
 
 
-    def setWorkReceiver(self, receiver):
-        """
-        XXX
-        """
-        self.work_receiver = receiver
+    def receiverMapping(self):
+        return {
+            IResult: self.resultReceived,
+            IResultError: self.resultReceived,
+            IWork: self.workReceived,
+        }
 
 
-    def setDataReceiver(self, receiver):
-        """
-        XXX
-        """
-        self.data_receiver = receiver
+    def subscribe(self, receiver):
+        return ISource(self).subscribe(receiver)
+
+
+    def emit(self, data):
+        return ISource(self).emit(data)
 
 
     def inputReceived(self, data):
-        """
-        New data, not from the result of a garden computation, received.
-
-        XXX I am not tested.
-        """
-        return self.dataReceived(IData(data))
+        return self.to_data.dataReceived(data)
 
 
     def resultReceived(self, result):
-        """
-        XXX
-        """
         return self.result_filter.resultReceived(result)
 
 
-    def resultErrorReceived(self, error):
-        """
-        XXX I ignore things silently.  This ought not be.
-        """
-        return defer.succeed(True)
-
-
     def dataReceived(self, data):
-        """
-        XXX
-        """
         return self.storer.dataReceived(data)
-        
+
+
+    def workReceived(self, work):
+        return self.emit(work)
 
 
     def doPossibleWork(self, entity, name, version):
-        """
-        XXX
-        """
-
+        return self.work_maker.doPossibleWork(entity, name, version)
 

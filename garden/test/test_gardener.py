@@ -7,12 +7,12 @@ from mock import create_autospec, call
 from hashlib import sha1
 
 from garden.interface import (IGardener, IReceiver, ISourceable, IWork, IData,
-                              IResult, IResultError, ISource)
+                              IInput, IResult, IResultError, ISource)
 from garden.store import InMemoryStore
 from garden.path import Garden
 from garden.data import linealHash, Data, Result, Work
-from garden.gardener import (Gardener, InvalidResultFilter, DataStorer,
-                             WorkMaker)
+from garden.gardener import (Gardener, ToDataConverter,
+                             InvalidResultFilter, DataStorer, WorkMaker)
 from garden.test.fake import FakeReceiver
 
 
@@ -33,14 +33,50 @@ class GardenerTest(TestCase):
         self.assertEqual(g.store, 'store')
 
 
-    def test_setWorkReceiver(self):
+
+class ToDataConverterTest(TestCase):
+
+
+    def test_IReceiver(self):
         """
-        Should just set work_receiver
+        Should receive results
         """
-        g = Gardener(None, None)
-        self.assertEqual(g.work_receiver, None)
-        g.setWorkReceiver('foo')
-        self.assertEqual(g.work_receiver, 'foo')
+        c = ToDataConverter()
+        verifyObject(IReceiver, c)
+        
+        mapping = c.receiverMapping()
+        self.assertEqual(mapping[IResult], c.dataReceived)
+        self.assertEqual(mapping[IResultError], c.resultErrorReceived)
+        self.assertEqual(mapping[IInput], c.dataReceived)
+
+
+    def test_ISourceable(self):
+        """
+        Should be a source of Data
+        """
+        c = ToDataConverter()
+        verifyObject(ISourceable, c)
+        
+        self.assertIn(IData, c.sourceInterfaces)
+
+
+    def test_resultReceived(self):
+        """
+        Should emit Data
+        """        
+        c = ToDataConverter()
+        
+        recv = FakeReceiver([IData], lambda x: defer.Deferred())
+        ISource(c).subscribe(recv)
+        
+        result = Result('joe', 'cake', '1', 'xxxx', 'value', [])
+        r = c.dataReceived(result)
+        self.assertFalse(r.called, "Should not callback yet")
+        
+        recv.receive.assert_called_once_with(IData(result))
+        recv.results[-1].callback('foo')
+        self.assertTrue(r.called)
+        
 
 
 

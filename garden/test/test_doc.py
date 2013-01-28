@@ -4,7 +4,7 @@ import doctest
 
 
 _doctest_runner = doctest.DocTestRunner(verbose=False,
-    optionflags=doctest.ELLIPSIS | doctest.IGNORE_EXCEPTION_DETAIL)
+    optionflags=doctest.ELLIPSIS | doctest.IGNORE_EXCEPTION_DETAIL | doctest.REPORT_ONLY_FIRST_FAILURE | doctest.NORMALIZE_WHITESPACE)
 _doctest_parser = doctest.DocTestParser()
 
 

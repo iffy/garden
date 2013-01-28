@@ -32,6 +32,14 @@ class BlockingWorker(object):
         return {
             IWork: self.workReceived,
         }
+
+
+    def subscribe(self, receiver):
+        return ISource(self).subscribe(receiver)
+
+
+    def emit(self, data):
+        return ISource(self).emit(data)
     
     
     def registerFunction(self, name, version, func):
@@ -80,6 +88,14 @@ class ThreadedWorker(object):
         return {
             IWork: self.workReceived,
         }
+
+
+    def subscribe(self, receiver):
+        return ISource(self).subscribe(receiver)
+
+
+    def emit(self, data):
+        return ISource(self).emit(data)
 
     
     def registerFunction(self, name, version, func):

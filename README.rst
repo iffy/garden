@@ -94,8 +94,10 @@ each other:
 
     >>> from garden.gardener import Gardener
     >>> gardener = Gardener(garden, store)
-    >>> gardener.setWorkReceiver(worker)
-    >>> worker.setResultReceiver(gardener)
+    >>> gardener.subscribe(worker)
+    [...]
+    >>> worker.subscribe(gardener)
+    [...]
 
 
 Now give the ``Gardener`` some data about Frodo's progress in the class:
@@ -118,12 +120,12 @@ And see that the grade was computed:
 .. code:: python
 
     >>> store.get('Frodo', 'percent', 'v1').result
-    [Data('Frodo', 'percent', 'v1', ... '0.74')]
+    [Data(entity='Frodo', name='percent', version='v1', ... value='0.74')]
 
 .. code:: python
 
     >>> store.get('Frodo', 'letter', 'v1').result
-    [Data('Frodo', 'letter', 'v1', ... 'B')]
+    [Data(entity='Frodo', name='letter', version='v1', ... value='B')]
 
 
 Are you kidding me?
@@ -196,12 +198,12 @@ And see that Frodo now has two ``'letter'`` values:
 .. code:: python
 
     >>> store.get('Frodo', 'letter', 'v1').result
-    [('Frodo', 'letter', 'v1', ... 'B')]
+    [Data(entity='Frodo', name='letter', version='v1', ... value='B')]
 
 .. code:: python
 
     >>> store.get('Frodo', 'letter', 'v2').result
-    [('Frodo', 'letter', 'v2', ... 'C')]
+    [Data(entity='Frodo', name='letter', version='v2', ... value='C')]
 
 
 More Versions
@@ -240,24 +242,26 @@ As you may expect, Frodo now has two versions of ``'percent'``:
 .. code:: python
 
     >>> store.get('Frodo', 'percent', 'v1').result
-    [('Frodo', 'percent', 'v1', ... '0.74')]
+    [Data(entity='Frodo', name='percent', version='v1', ... value='0.74')]
 
 .. code:: python
 
     >>> store.get('Frodo', 'percent', 'v2').result
-    [('Frodo', 'percent', 'v2', ... '0.86')]
+    [Data(entity='Frodo', name='percent', version='v2', ... value='0.86')]
 
 And Frodo now has **four** versions of ``'letter'``:
 
 .. code:: python
 
     >>> store.get('Frodo', 'letter', 'v1').result
-    [('Frodo', 'letter', 'v1', ... 'B'), ('Frodo', 'letter', 'v1', ... 'B')]
+    [Data(entity='Frodo', name='letter', version='v1', ... value='B'),
+     Data(entity='Frodo', name='letter', version='v1', ... value='B')]
 
 .. code:: python
 
     >>> store.get('Frodo', 'letter', 'v2').result
-    [('Frodo', 'letter', 'v2', ... 'C'), ('Frodo', 'letter', 'v2', ... 'B')]
+    [Data(entity='Frodo', name='letter', version='v2', ... value='C'),
+     Data(entity='Frodo', name='letter', version='v2', ... value='B')]
 
 
 Confused?  Enlightened?
