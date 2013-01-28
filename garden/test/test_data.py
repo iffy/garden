@@ -157,6 +157,32 @@ class WorkTest(TestCase):
         ), "Should convert all arguments to a WorkInput")
 
 
+    def test_toResult(self):
+        """
+        You can easily convert to a Result
+        """
+        w = Work('bob', 'a', '1', 'xxxx', [
+            ('a', '1', 'xxxx', 'val', 'hash'),
+        ])
+        r = w.toResult('the result')
+        self.assertEqual(r, Result('bob', 'a', '1', 'xxxx', 'the result', [
+            ('a', '1', 'xxxx', 'hash'),
+        ]))
+
+
+    def test_toResultError(self):
+        """
+        You can convert to a ResultError
+        """
+        w = Work('bob', 'a', '1', 'xxxx', [
+            ('a', '1', 'xxxx', 'val', 'hash'),
+        ])
+        r = w.toResultError('the err')
+        self.assertEqual(r, ResultError('bob', 'a', '1', 'xxxx', 'the err', [
+            ('a', '1', 'xxxx', 'hash'),
+        ]))
+
+
 
 class ResultInputTest(TestCase):
 

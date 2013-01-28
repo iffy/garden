@@ -54,13 +54,21 @@ def linealHash(name, version, input_hashes=None):
 
 
 class Input(namedtuple('Input', ['entity', 'name', 'version', 'value'])):
+    """
+    I am a single piece of input data.
+    
+    See L{IInput} for a description of my attributes.
+    """
     implements(IInput)
 
 
 
-
-
 class Data(namedtuple('Data', ['entity', 'name', 'version', 'lineage', 'value'])):
+    """
+    I am a single piece of data.
+    
+    See L{IData} for a description of my attributes.
+    """
     implements(IData)
 
 
@@ -74,6 +82,11 @@ components.registerAdapter(adaptInputToData, IInput, IData)
 
 
 class WorkInput(namedtuple('WorkInput', ['name', 'version', 'lineage', 'value', 'hash'])):
+    """
+    I am an input needed for work (I'm like L{Data} but with a hash).
+    
+    See L{IWorkInput} for a description of my attributes.
+    """
     implements(IWorkInput)
 
 
@@ -85,17 +98,48 @@ def adaptDataToWorkInput(d):
 components.registerAdapter(adaptDataToWorkInput, IData, IWorkInput)
 
 
+
 class _Work(namedtuple('Work', ['entity', 'name', 'version', 'lineage', 'inputs'])):
     implements(IWork)
 
 
-# XXX fake initializer... is there a better way to do this?
-def Work(entity, name, version, lineage, inputs):
-    return _Work(entity, name, version, lineage, tuple([WorkInput(*x) for x in inputs]))
+
+class Work(_Work):
+    """
+    I am a work request.
+    
+    See L{IWork} for a description of my attributes.
+    """
+    
+    def __new__(cls, entity, name, version, lineage, inputs):
+        return cls.__bases__[0].__new__(cls, entity, name, version, lineage,
+                                        tuple([WorkInput(*x) for x in inputs]))
+
+
+    def toResult(self, result):
+        """
+        Make an IResult out of this work and the result of the work
+        """
+        return Result(self.entity, self.name, self.version, self.lineage, result,
+                      [IResultInput(x) for x in self.inputs])
+
+
+    def toResultError(self, error):
+        """
+        Make an ResultError out of me, including the passed-in C{error}.
+        """
+        return ResultError(self.entity, self.name, self.version, self.lineage,
+                           error, [IResultInput(x) for x in self.inputs])
+
 
 
 class ResultInput(namedtuple('ResultInput', ['name', 'version', 'lineage', 'hash'])):
+    """
+    I am a partial input for including with results and error.  I'm like
+    L{Data}, but without C{entity} and C{value}.
+    """
     implements(IResultInput)
+
 
 
 def adaptWorkInputToResultInput(i):
@@ -106,13 +150,21 @@ def adaptWorkInputToResultInput(i):
 components.registerAdapter(adaptWorkInputToResultInput, IWorkInput, IResultInput)
 
 
+
 class _Result(namedtuple('Result', ['entity', 'name', 'version', 'lineage', 'value', 'inputs'])):
     implements(IResult)
 
 
-# XXX fake initializer... is there a better way to do this?
-def Result(entity, name, version, lineage, value, inputs):
-    return _Result(entity, name, version, lineage, value, tuple([ResultInput(*x) for x in inputs]))
+class Result(_Result):
+    """
+    I am the result of some work.
+    
+    See L{IResult} for a description of my attributes.
+    """
+    
+    def __new__(cls, entity, name, version, lineage, value, inputs):
+        return cls.__bases__[0].__new__(cls, entity, name, version, lineage,
+                                        value, tuple([ResultInput(*x) for x in inputs]))
 
 
 def adaptResultToData(r):
@@ -122,12 +174,19 @@ def adaptResultToData(r):
     return Data(r.entity, r.name, r.version, r.lineage, r.value)
 components.registerAdapter(adaptResultToData, IResult, IData)
 
-class _ResultError(namedtuple('Result', ['entity', 'name', 'version', 'lineage', 'error', 'inputs'])):
+class _ResultError(namedtuple('ResultError', ['entity', 'name', 'version', 'lineage', 'error', 'inputs'])):
     implements(IResultError)
 
 
-# XXX fake initializer... is there a better way to do this?
-def ResultError(entity, name, version, lineage, value, inputs):
-    return _ResultError(entity, name, version, lineage, value, tuple([ResultInput(*x) for x in inputs]))
+class ResultError(_ResultError):
+    """
+    I am a resulting error of some work.
+    
+    See L{IResultError} for a description of my attributes.
+    """
+
+    def __new__(cls, entity, name, version, lineage, value, inputs):
+        return cls.__bases__[0].__new__(cls, entity, name, version, lineage,
+                                        value, tuple([ResultInput(*x) for x in inputs]))
 
 
