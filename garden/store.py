@@ -3,6 +3,7 @@ from twisted.internet import reactor, defer
 from twisted.enterprise import adbapi
 
 from garden.interface import IDataStore
+from garden.data import Data
 
 
 sqlite = None
@@ -49,22 +50,32 @@ class SqliteStore(object):
             )''')
 
 
-    def put(self, entity, name, version, lineage, value):
+    def put(self, data):
+        """
+        Put data in this store.
+        
+        @type data: L{Data}
+        """
         def interaction(c):
             c.execute('''select value from data where
                 entity = ?
                 and name = ?
                 and version = ?
-                and lineage = ?''', (entity, name, version, lineage))
+                and lineage = ?''', (data.entity, data.name, data.version,
+                                     data.lineage))
             result = c.fetchone()
             changed = True
             if not result:
                 c.execute('''insert into data
                     (entity, name, version, lineage, value)
                     values (?, ?, ?, ?, ?)''',
-                    (entity, name, version, lineage, value))
+                    (data.entity,
+                     data.name,
+                     data.version,
+                     data.lineage,
+                     data.value))
             else:
-                changed = result[0] != value
+                changed = result[0] != data.value
                 c.execute('''update data
                     set value=?
                     where
@@ -72,7 +83,11 @@ class SqliteStore(object):
                         and name = ?
                         and version = ?
                         and lineage = ?''',
-                    (value, entity, name, version, lineage))
+                    (data.value,
+                     data.entity,
+                     data.name,
+                     data.version,
+                     data.lineage))
             return {'changed': changed}
         return self.pool.runInteraction(interaction)
 
@@ -95,7 +110,11 @@ class SqliteStore(object):
             wheres.append('lineage = ?')
             args.append(lineage)
         qry = qry + ' where ' + ' AND '.join(wheres)
-        return self.runQuery(qry, tuple(args))
+        return self.runQuery(qry, tuple(args)).addCallback(self._gotData)
+
+
+    def _gotData(self, data):
+        return [Data(*x) for x in data]
 
 
 
@@ -125,11 +144,13 @@ class InMemoryStore(object):
 
     def get(self, entity, name=None, version=None, lineage=None):
         keys = [x for x in self._data if self._matchKey(x, entity, name, version, lineage)]
-        return defer.succeed([k + (self._data[k],) for k in keys])
+        return defer.succeed([Data(*k + (self._data[k],)) for k in keys])
 
 
-    def put(self, entity, name, version, lineage, value):
+    def put(self, data):
+        entity, name, version, lineage, value = data
         old_value = self._data.get((entity, name, version, lineage), None)
         changed = value != old_value
         self._data[(entity, name, version, lineage)] = value
         return defer.succeed({'changed': changed})
+
