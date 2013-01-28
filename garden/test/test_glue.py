@@ -3,8 +3,6 @@ from twisted.internet import defer
 from zope.interface.verify import verifyObject
 from zope.interface import Interface, implements
 
-from mock import create_autospec
-
 from garden.interface import ISource, IReceiver
 from garden.error import NothingToOffer
 from garden.glue import Source

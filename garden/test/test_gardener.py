@@ -1,21 +1,19 @@
 from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 
-from zope.interface.verify import verifyClass, verifyObject
+from zope.interface.verify import verifyObject
 
 from mock import create_autospec, call
 from hashlib import sha1
 
-from garden.interface import (IGardener, IResultReceiver, IResultSource,
-                              IDataSource, IDataReceiver, IWorkSource,
-                              IData)
+from garden.interface import (IGardener, IReceiver, ISourceable, IWork, IData,
+                              IResult, IResultError, ISource)
 from garden.store import InMemoryStore
 from garden.path import Garden
-from garden.data import linealHash, Input, Data, Result, ResultError, Work
+from garden.data import linealHash, Data, Result, Work
 from garden.gardener import (Gardener, InvalidResultFilter, DataStorer,
                              WorkMaker)
-from garden.test.fake import (FakeWorkReceiver, FakeDataReceiver,
-                              FakeResultReceiver)
+from garden.test.fake import FakeReceiver
 
 
 
@@ -50,24 +48,19 @@ class GardenerTest(TestCase):
 class InvalidResultFilterTest(TestCase):
 
 
-    def test_IResultReceiver(self):
-        verifyObject(IResultReceiver, InvalidResultFilter(None, None))
-        verifyClass(IResultReceiver, InvalidResultFilter)
+    def test_IReceiver(self):
+        verifyObject(IReceiver, InvalidResultFilter(None, None))
 
-
-    def test_IResultSource(self):
-        verifyObject(IResultSource, InvalidResultFilter(None, None))
-        verifyClass(IResultSource, InvalidResultFilter)
-
-
-    def test_setResultReceiver(self):
-        """
-        Should set the result_receiver
-        """
         f = InvalidResultFilter(None, None)
-        self.assertEqual(f.result_receiver, None)
-        f.setResultReceiver('foo')
-        self.assertEqual(f.result_receiver, 'foo')
+        mapping = f.receiverMapping()
+        self.assertEqual(mapping[IResult], f.resultReceived)
+        self.assertEqual(mapping[IResultError], f.resultReceived)
+
+
+    def test_ISourceable(self):
+        verifyObject(ISourceable, InvalidResultFilter(None, None))
+        self.assertTrue(IResult in InvalidResultFilter.sourceInterfaces)
+        self.assertTrue(IResultError in InvalidResultFilter.sourceInterfaces)
 
 
     def test_resultReceived_hashcheck(self):
@@ -83,17 +76,16 @@ class InvalidResultFilterTest(TestCase):
             ('cake', '1'),
         ])
         
-        receiver = FakeResultReceiver()
-        receiver.resultReceived.mock.side_effect = lambda *a: defer.succeed('a')
+        receiver = FakeReceiver([IResult])
         
         f = InvalidResultFilter(garden, store)
-        f.setResultReceiver(receiver)
+        ISource(f).subscribe(receiver)
         
         # receive a result not based on the correct input value
         r = f.resultReceived(Result('joe', 'happiness', '1', 'bbbb', 'yes', [
             ('cake', '1', 'xxxx', sha1('vanilla').hexdigest()),
         ]))
-        self.assertEqual(receiver.resultReceived.call_count, 0, "Should not "
+        self.assertEqual(receiver.receive.call_count, 0, "Should not "
                          "have passed the result on")
         self.assertTrue(r.called)
         
@@ -102,8 +94,8 @@ class InvalidResultFilterTest(TestCase):
             ('cake', '1', 'xxxx', sha1('chocolate').hexdigest()),
         ])
         r = f.resultReceived(result)
-        receiver.resultReceived.assert_called_once_with(result)
-        self.assertEqual(self.successResultOf(r), 'a')
+        receiver.receive.assert_called_once_with(result)
+        self.assertTrue(self.successResultOf(r))
 
 
     def test_resultReceived_invalidPath(self):
@@ -119,32 +111,17 @@ class InvalidResultFilterTest(TestCase):
             ('cake', '1'),
         ])
         
-        receiver = FakeResultReceiver()
+        receiver = FakeReceiver([IResult])
         
         f = InvalidResultFilter(garden, store)
-        f.setResultReceiver(receiver)
+        ISource(f).subscribe(receiver)
         
         r = f.resultReceived(Result('joe', 'happiness', '1', 'bbbb', 'yes', [
             ('money', '1', 'xxxx', sha1('lots').hexdigest()),
         ]))
-        self.assertEqual(receiver.resultReceived.call_count, 0, "Should not "
+        self.assertEqual(receiver.receive.call_count, 0, "Should not "
                          "send the result on, because money doesn't produce "
                          "happiness in this garden.  Only cake does that")
-        self.assertTrue(r.called)
-
-
-    def test_resultErrorReceived(self):
-        """
-        Should just be a pass-through
-        """
-        receiver = FakeResultReceiver()
-        
-        f = InvalidResultFilter(None, None)
-        f.setResultReceiver(receiver)
-        
-        err = ResultError('joe', 'happiness', '1', 'bbbb', 'error', [])
-        r = f.resultErrorReceived(err)
-        receiver.resultErrorReceived.assert_called_once_with(err)
         self.assertTrue(r.called)
 
 
@@ -152,12 +129,18 @@ class InvalidResultFilterTest(TestCase):
 class DataStorerTest(TestCase):
 
 
-    def test_IDataReceiver(self):
-        verifyObject(IDataReceiver, DataStorer(None))
+    def test_IReceiver(self):
+        verifyObject(IReceiver, DataStorer(None))
+        
+        s = DataStorer(None)
+        mapping = s.receiverMapping()
+        self.assertEqual(mapping[IData], s.dataReceived)
 
 
-    def test_IDataSource(self):
-        verifyObject(IDataSource, DataStorer(None))
+    def test_ISourceable(self):
+        verifyObject(ISourceable, DataStorer(None))
+        
+        self.assertTrue(IData in DataStorer.sourceInterfaces)
 
 
     def test_dataReceived(self):
@@ -169,21 +152,20 @@ class DataStorerTest(TestCase):
         store_d = defer.Deferred()
         store.put = create_autospec(store.put, return_value=store_d)
         
-        fake = FakeDataReceiver()
-        fake.dataReceived.mock.side_effect = lambda *a: defer.succeed('joe')
+        fake = FakeReceiver([IData])
         
         s = DataStorer(store)
-        s.setDataReceiver(fake)
+        ISource(s).subscribe(fake)
         
         data = Data('sam', 'cake', '1', 'xxxx', 'value')
         result = s.dataReceived(data)
-        self.assertEqual(fake.dataReceived.call_count, 0, "Should not have "
+        self.assertEqual(fake.receive.call_count, 0, "Should not have "
                          "passed the data on because it hasn't been stored yet")
         store.put.assert_called_once_with(data)
         self.assertFalse(result.called)
         store_d.callback({'changed': True})
-        fake.dataReceived.assert_called_once_with(data)
-        self.assertEqual(self.successResultOf(result), 'joe', "Should return "
+        fake.receive.assert_called_once_with(data)
+        self.assertTrue(self.successResultOf(result), "Should return "
                          "whatever the other receiver returns")
 
 
@@ -194,13 +176,13 @@ class DataStorerTest(TestCase):
         store = InMemoryStore()
         store.put(Data('ham', 'cake', '1', 'xxxx', 'value'))
         
-        fake = FakeDataReceiver()
+        fake = FakeReceiver([IData])
         
         s = DataStorer(store)
-        s.setDataReceiver(fake)
+        ISource(s).subscribe(fake)
         
         s.dataReceived(Data('ham', 'cake', '1', 'xxxx', 'value'))
-        self.assertEqual(fake.dataReceived.call_count, 0, "Should not pass "
+        self.assertEqual(fake.receive.call_count, 0, "Should not pass "
                          "along unchanged data")
 
 
@@ -208,12 +190,18 @@ class DataStorerTest(TestCase):
 class WorkMakerTest(TestCase):
 
 
-    def test_IDataReceiver(self):
-        verifyObject(IDataReceiver, WorkMaker(None, None))
+    def test_IReceiver(self):
+        verifyObject(IReceiver, WorkMaker(None, None))
+        
+        maker = WorkMaker(None, None)
+        mapping = maker.receiverMapping()
+        self.assertEqual(mapping[IData], maker.dataReceived)
 
 
-    def test_IWorkSource(self):
-        verifyObject(IWorkSource, WorkMaker(None, None))
+    def test_ISourceable(self):
+        verifyObject(ISourceable, WorkMaker(None, None))
+        
+        self.assertTrue(IWork in WorkMaker.sourceInterfaces)
 
 
     def test_dataReceived(self):
@@ -258,12 +246,12 @@ class WorkMakerTest(TestCase):
             ('flour', 'new'),
         ])
 
-        fake = FakeWorkReceiver()
+        receiver = FakeReceiver([IWork])
         
         w = WorkMaker(garden, store)
-        w.setWorkReceiver(fake)
+        ISource(w).subscribe(receiver)
         
-        return store, garden, w, fake
+        return store, garden, w, receiver
 
 
     def test_doPossibleWork_nothing(self):
@@ -287,7 +275,7 @@ class WorkMakerTest(TestCase):
         store.put(Data('sam', 'flour', '1', 'bbbb', 'flour value'))
                 
         r = w.doPossibleWork('sam', 'cake', '1')
-        recv.workReceived.assert_called_once_with(Work('sam', 'cake', '1',
+        recv.receive.assert_called_once_with(Work('sam', 'cake', '1',
             linealHash('cake', '1', ['aaaa', 'bbbb']),
             [('eggs', '1', 'aaaa', 'eggs value'),
              ('flour', '1', 'bbbb', 'flour value')]
@@ -308,7 +296,7 @@ class WorkMakerTest(TestCase):
         store.put(Data('sam', 'flour', '1', 'cccc', 'flour value 2'))
         
         r = w.doPossibleWork('sam', 'cake', '1')
-        recv.workReceived.assert_has_calls([
+        recv.receive.assert_has_calls([
             call(Work('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
                 [('eggs', '1', 'aaaa', 'eggs value'),
                  ('flour', '1', 'bbbb', 'flour value')])),
@@ -316,7 +304,7 @@ class WorkMakerTest(TestCase):
                 [('eggs', '1', 'aaaa', 'eggs value'),
                  ('flour', '1', 'cccc', 'flour value 2')])),
         ])
-        self.assertEqual(recv.workReceived.call_count, 2)
+        self.assertEqual(recv.receive.call_count, 2)
         self.assertEqual(len(self.successResultOf(r)), 2)
 
 
@@ -331,7 +319,7 @@ class WorkMakerTest(TestCase):
         store.put(Data('sam', 'flour', 'new', 'cccc', 'flour value 2'))
         
         r = w.doPossibleWork('sam', 'cake', '1')
-        recv.workReceived.assert_has_calls([
+        recv.receive.assert_has_calls([
             call(Work('sam', 'cake', '1', linealHash('cake', '1', ['aaaa', 'bbbb']),
                 [('eggs', '1', 'aaaa', 'eggs value'),
                  ('flour', '1', 'bbbb', 'flour value')])),
@@ -339,7 +327,7 @@ class WorkMakerTest(TestCase):
                 [('eggs', '1', 'aaaa', 'eggs value'),
                  ('flour', 'new', 'cccc', 'flour value 2')])),
         ])
-        self.assertEqual(recv.workReceived.call_count, 2)
+        self.assertEqual(recv.receive.call_count, 2)
         self.assertEqual(len(self.successResultOf(r)), 2)
 
 
@@ -359,11 +347,10 @@ class WorkMakerTest(TestCase):
             ('eggs', '1'),
         ])
         
-        receiver = FakeWorkReceiver()
-        receiver.workReceived.mock.side_effect = lambda *a: defer.fail(Exception('foo'))
+        receiver = FakeReceiver([IWork], lambda x: defer.fail(Exception('foo')))
         
         w = WorkMaker(garden, store)
-        w.setWorkReceiver(receiver)
+        ISource(w).subscribe(receiver)
         
         r = w.dataReceived(Data('Jim', 'eggs', '1', 'xxxx', 'value'))
         self.assertFailure(r, Exception)

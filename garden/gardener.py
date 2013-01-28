@@ -5,9 +5,8 @@ from zope.interface import implements
 from hashlib import sha1
 from itertools import product
 
-from garden.interface import (IGardener, IResultReceiver, IResultSource,
-                              IDataSource, IDataReceiver, IWorkSource,
-                              IWorkInput, IData)
+from garden.interface import (IGardener, IWorkInput, IWork, IData, ISource,
+                              ISourceable, IResult, IResultError, IReceiver)
 from garden.data import linealHash, Work
 
 
@@ -28,9 +27,9 @@ class InvalidResultFilter(object):
     or through a path that doesn't exist in the garden.
     """
     
-    implements(IResultReceiver, IResultSource)
+    implements(ISourceable, IReceiver)
+    sourceInterfaces = [IResult, IResultError]
     
-    result_receiver = None
     store = None
     garden = None
     
@@ -40,8 +39,11 @@ class InvalidResultFilter(object):
         self.garden = garden
 
 
-    def setResultReceiver(self, receiver):
-        self.result_receiver = receiver
+    def receiverMapping(self):
+        return {
+            IResult: self.resultReceived,
+            IResultError: self.resultReceived,
+        }
 
 
     def resultReceived(self, result):
@@ -90,11 +92,7 @@ class InvalidResultFilter(object):
         XXX
         """
         if do_send:
-            return self.result_receiver.resultReceived(result)
-
-
-    def resultErrorReceived(self, error):
-        return self.result_receiver.resultErrorReceived(error)
+            return ISource(self).emit(result)
 
 
 
@@ -104,15 +102,18 @@ class DataStorer(object):
     on if it has changed.
     """
 
-    implements(IDataSource, IDataReceiver)
+    implements(ISourceable, IReceiver)
+    sourceInterfaces = (IData,)
 
 
     def __init__(self, store):
         self.store = store
 
 
-    def setDataReceiver(self, receiver):
-        self.data_receiver = receiver
+    def receiverMapping(self):
+        return {
+            IData: self.dataReceived,
+        }
 
 
     def dataReceived(self, data):
@@ -127,7 +128,7 @@ class DataStorer(object):
     def _stored(self, result, data):
         if not result['changed']:
             return
-        return self.data_receiver.dataReceived(data)
+        return ISource(self).emit(data)
 
 
 
@@ -136,18 +137,19 @@ class WorkMaker(object):
     I spawn work based on data received and paths in the Garden.
     """
     
-    implements(IDataReceiver, IWorkSource)
-    
-    work_receiver = None
+    implements(ISourceable, IReceiver)
+    sourceInterfaces = (IWork,)
 
-    
+
     def __init__(self, garden, store):
         self.garden = garden
         self.store = store
 
 
-    def setWorkReceiver(self, receiver):
-        self.work_receiver = receiver
+    def receiverMapping(self):
+        return {
+            IData: self.dataReceived,
+        }
 
 
     def dataReceived(self, data):
@@ -195,7 +197,7 @@ class WorkMaker(object):
             work = Work(entity, name, version,
                         linealHash(name, version, lineages),
                         [IWorkInput(x) for x in combination])
-            d = self.work_receiver.workReceived(work)
+            d = ISource(self).emit(work)
             dlist.append(d)
         return aggregateResult(dlist)
 
