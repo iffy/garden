@@ -2,10 +2,10 @@ from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 from zope.interface.verify import verifyClass, verifyObject
 
-from garden.interface import IWorker, IWork, IResult, IResultError
-from garden.data import Input, Data, Work, Result, ResultError
+from garden.interface import ISource, IWorker, IWork, IResult, IResultError
+from garden.data import Work
 from garden.worker import BlockingWorker, ThreadedWorker
-from garden.test.fake import FakeResultReceiver, FakeResultErrorReceiver
+from garden.test.fake import FakeReceiver
 
 
 
@@ -38,12 +38,10 @@ class BlockingWorkerTest(TestCase):
         """
         The worker should be able to receive work and do it.
         """
-        receiver = FakeResultReceiver()
-        receive_result = defer.Deferred()
-        receiver.resultReceived.side_effect = lambda *a: receive_result
+        receiver = FakeReceiver([IResult], lambda x: defer.Deferred())
 
-        w = BlockingWorker()        
-        w.setResultReceiver(receiver)
+        w = BlockingWorker()
+        ISource(w).subscribe(receiver)
         
         def foo(a, b):
             return a + b
@@ -57,8 +55,8 @@ class BlockingWorkerTest(TestCase):
         self.assertFalse(r.called, "Should not be done, because the result "
                          "hasn't been sent, and BlockingWorker doesn't have "
                          "a queue of work to do.")
-        receiver.resultReceived.assert_called_once_with(work.toResult('bigfish'))
-        receive_result.callback('foo')
+        receiver.receive.assert_called_once_with(work.toResult('bigfish'))
+        receiver.results[-1].callback('foo')
         self.assertTrue(r.called, "Now that the result is confirmed sent, "
                         "the work should be considered done")
 
@@ -67,12 +65,10 @@ class BlockingWorkerTest(TestCase):
         """
         If the work results in an Exception, send an error to the error receiver
         """
-        receiver = FakeResultErrorReceiver()
-        result = defer.Deferred()
-        receiver.resultErrorReceived.side_effect = lambda *a: result
+        receiver = FakeReceiver([IResultError], lambda x: defer.Deferred())
         
         w = BlockingWorker()
-        w.setResultErrorReceiver(receiver)
+        ISource(w).subscribe(receiver)
         
         exc = Exception('something')
         def foo(a, b):
@@ -86,9 +82,8 @@ class BlockingWorkerTest(TestCase):
         r = w.workReceived(work)
         self.assertFalse(r.called, "Should not be done because the error hasn't"
                          " yet been received by the receiver")
-        receiver.resultErrorReceived.assert_called_once_with(
-            work.toResultError(repr(exc)))
-        result.callback('foo')
+        receiver.receive.assert_called_once_with(work.toResultError(repr(exc)))
+        receiver.results[-1].callback('foo')
         self.assertTrue(r.called, "Now that the error was received by the "
                         "receiver, we're good")
 
@@ -97,10 +92,10 @@ class BlockingWorkerTest(TestCase):
         """
         If the inputs are a list, that should be okay too
         """
-        receiver = FakeResultReceiver()
+        receiver = FakeReceiver([IResult])
 
-        w = BlockingWorker()        
-        w.setResultReceiver(receiver)
+        w = BlockingWorker()
+        ISource(w).subscribe(receiver)
         
         def foo(a, b):
             return a + b
@@ -111,7 +106,7 @@ class BlockingWorkerTest(TestCase):
             ['b', 'v1', 'xxxx', 'fish', 'FISH'],
         ])
         r = w.workReceived(work)
-        receiver.resultReceived.assert_called_once_with(work.toResult('bigfish'))
+        receiver.receive.assert_called_once_with(work.toResult('bigfish'))
         return r
 
 
@@ -141,25 +136,15 @@ class ThreadedWorkerTest(TestCase):
         self.assertEqual(mapping[IWork], worker.workReceived)
 
 
-    def test_setResultReceiver(self):
-        """
-        Should set result_receiver
-        """
-        t = ThreadedWorker()
-        self.assertEqual(t.result_receiver, None)
-        t.setResultReceiver('foo')
-        self.assertEqual(t.result_receiver, 'foo')
-
-
     @defer.inlineCallbacks
     def test_workReceived(self):
         """
         Should run the work in a thread
         """
-        receiver = FakeResultReceiver()
+        receiver = FakeReceiver([IResult])
         
         w = ThreadedWorker()
-        w.setResultReceiver(receiver)
+        ISource(w).subscribe(receiver)
         
         def foo(a, b):
             return a + b
@@ -170,7 +155,7 @@ class ThreadedWorkerTest(TestCase):
             ('b', 'v1', 'xxxx', 'fish', 'FISH'),
         ])
         yield w.workReceived(work)
-        receiver.resultReceived.assert_called_once_with(work.toResult('bigfish'))
+        receiver.receive.assert_called_once_with(work.toResult('bigfish'))
 
 
     @defer.inlineCallbacks
@@ -178,11 +163,10 @@ class ThreadedWorkerTest(TestCase):
         """
         If there's an error doing the work, tell the result_receiver
         """
-        receiver = FakeResultErrorReceiver()
-        receiver.resultErrorReceived.side_effect = lambda *a: defer.succeed('hey')
+        receiver = FakeReceiver([IResultError])
         
         w = ThreadedWorker()
-        w.setResultErrorReceiver(receiver)
+        ISource(w).subscribe(receiver)
         
         exc = Exception('foo')
         
@@ -193,8 +177,7 @@ class ThreadedWorkerTest(TestCase):
         work = Work('bob', 'foo', 'v1', 'xxxx', [
             ('a', 'v1', 'xxxx', 'big', 'BIG'),
         ])
-        r = yield w.workReceived(work)
-        receiver.resultErrorReceived.assert_called_once_with(
-            work.toResultError(repr(exc)))
+        yield w.workReceived(work)
+        receiver.receive.assert_called_once_with(work.toResultError(repr(exc)))
 
 

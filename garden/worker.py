@@ -1,7 +1,7 @@
 from zope.interface import implements
 from twisted.internet import threads
 
-from garden.interface import IWorker, IWork, IResult, IResultError
+from garden.interface import ISource, IWorker, IWork, IResult, IResultError
 
 
 
@@ -30,8 +30,6 @@ class BlockingWorker(object):
     
     implements(IWorker)
     sourceInterfaces = IResult, IResultError
-    
-    result_receiver = None
     
     
     def __init__(self):
@@ -67,21 +65,9 @@ class BlockingWorker(object):
         args = _getInputValues(work.inputs)
         try:
             result = func(*args)
-            return self.result_receiver.resultReceived(work.toResult(result))
+            return ISource(self).emit(work.toResult(result))
         except Exception as e:
-            return self.error_receiver.resultErrorReceived(
-                work.toResultError(repr(e)))
-
-
-    def setResultReceiver(self, receiver):
-        """
-        XXX
-        """
-        self.result_receiver = receiver
-
-
-    def setResultErrorReceiver(self, receiver):
-        self.error_receiver = receiver
+            return ISource(self).emit(work.toResultError(repr(e)))
 
 
 
@@ -92,8 +78,6 @@ class ThreadedWorker(object):
     
     implements(IWorker)
     sourceInterfaces = IResult, IResultError
-    
-    result_receiver = None
 
 
     def __init__(self):
@@ -121,17 +105,6 @@ class ThreadedWorker(object):
         self._functions[(name, version)] = func
 
 
-    def setResultReceiver(self, receiver):
-        """
-        XXX
-        """
-        self.result_receiver = receiver
-
-
-    def setResultErrorReceiver(self, receiver):
-        self.error_receiver = receiver
-
-
     def workReceived(self, work):
         """
         XXX
@@ -142,15 +115,18 @@ class ThreadedWorker(object):
         result = threads.deferToThread(func, *args)
         
         def gotResult(result, work):
-            return self.result_receiver.resultReceived(work.toResult(result))
+            return work.toResult(result)
         
         def gotError(err, work):
-            return self.error_receiver.resultErrorReceived(
-                work.toResultError(repr(err.value)))
+            return work.toResultError(repr(err.value))
         
-        return result.addCallbacks(gotResult, gotError,
-                                   callbackArgs=(work,),
-                                   errbackArgs=(work,),)
+        def send(response):
+            return ISource(self).emit(response)
+        
+        d = result.addCallbacks(gotResult, gotError,
+                                callbackArgs=(work,),
+                                errbackArgs=(work,),)
+        return d.addBoth(send)
 
 
 
