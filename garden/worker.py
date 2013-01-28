@@ -4,22 +4,11 @@ from twisted.internet import threads
 from garden.interface import ISource, IWorker, IWork, IResult, IResultError
 
 
-
-def _makeResultInputs(inputs):
-    """
-    Given a list of work inputs, convert it to a list of result/error inputs.
-    This essentially just means stripping out the value.
-    """
-    # XXX I don't like these magic numbers
-    return [tuple(x[:3]) + (x[4],) for x in inputs]
-
-
 def _getInputValues(inputs):
     """
     Given a list of work inputs, return a list of just the values
     """
-    # XXX I don't like this magic number
-    return [x[3] for x in inputs]
+    return [x.value for x in inputs]
 
 
 

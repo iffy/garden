@@ -52,7 +52,6 @@ class InvalidResultFilter(object):
         """
         # check the garden
         valid_inputs = self.garden.inputsFor(result.name, result.version)
-        # XXX magic numbers
         actual_inputs = [(x.name, x.version) for x in result.inputs]
         if actual_inputs not in valid_inputs:
             return defer.succeed('invalid path')
@@ -75,8 +74,7 @@ class InvalidResultFilter(object):
         """
         XXX
         """
-        # XXX magic numbers
-        return sha1(current_val[0][4]).hexdigest() == ihash
+        return sha1(current_val[0].value).hexdigest() == ihash
 
 
     def _inputsMatch(self, values):
