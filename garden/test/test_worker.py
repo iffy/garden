@@ -3,6 +3,7 @@ from twisted.internet import defer
 from zope.interface.verify import verifyClass, verifyObject
 
 from garden.interface import IWorker
+from garden.data import Input, Data, Work, Result, ResultError
 from garden.worker import BlockingWorker, ThreadedWorker
 from garden.test.fake import FakeResultReceiver, FakeResultErrorReceiver
 
@@ -31,18 +32,15 @@ class BlockingWorkerTest(TestCase):
             return a + b
         w.registerFunction('foo', 'version1', foo)
         
-        r = w.workReceived('bob', 'foo', 'version1', 'aaaa', [
+        work = Work('bob', 'foo', 'version1', 'aaaa', [
             ('a', 'v1', 'xxxx', 'big', 'BIG'),
             ('b', 'v1', 'xxxx', 'fish', 'FISH'),
         ])
+        r = w.workReceived(work)
         self.assertFalse(r.called, "Should not be done, because the result "
                          "hasn't been sent, and BlockingWorker doesn't have "
                          "a queue of work to do.")
-        receiver.resultReceived.assert_called_once_with('bob', 'foo', 'version1',
-            'aaaa', 'bigfish', [
-                ('a', 'v1', 'xxxx', 'BIG'),
-                ('b', 'v1', 'xxxx', 'FISH'),
-            ])
+        receiver.resultReceived.assert_called_once_with(work.toResult('bigfish'))
         receive_result.callback('foo')
         self.assertTrue(r.called, "Now that the result is confirmed sent, "
                         "the work should be considered done")
@@ -64,17 +62,15 @@ class BlockingWorkerTest(TestCase):
             raise exc
         w.registerFunction('foo', 'version1', foo)
         
-        r = w.workReceived('bob', 'foo', 'version1', 'aaaa', [
+        work = Work('bob', 'foo', 'version1', 'aaaa', [
             ('a', 'v1', 'xxxx', '', 'BIG'),
             ('b', 'v1', 'xxxx', '', 'FISH'),
         ])
+        r = w.workReceived(work)
         self.assertFalse(r.called, "Should not be done because the error hasn't"
                          " yet been received by the receiver")
-        receiver.resultErrorReceived.assert_called_once_with('bob', 'foo',
-            'version1', 'aaaa', repr(exc), [
-                ('a', 'v1', 'xxxx', 'BIG'),
-                ('b', 'v1', 'xxxx', 'FISH'),
-            ])
+        receiver.resultErrorReceived.assert_called_once_with(
+            work.toResultError(repr(exc)))
         result.callback('foo')
         self.assertTrue(r.called, "Now that the error was received by the "
                         "receiver, we're good")
@@ -93,15 +89,12 @@ class BlockingWorkerTest(TestCase):
             return a + b
         w.registerFunction('foo', 'version1', foo)
         
-        r = w.workReceived('bob', 'foo', 'version1', 'aaaa', [
+        work = Work('bob', 'foo', 'version1', 'aaaa', [
             ['a', 'v1', 'xxxx', 'big', 'BIG'],
             ['b', 'v1', 'xxxx', 'fish', 'FISH'],
         ])
-        receiver.resultReceived.assert_called_once_with('bob', 'foo', 'version1',
-            'aaaa', 'bigfish', [
-                ('a', 'v1', 'xxxx', 'BIG'),
-                ('b', 'v1', 'xxxx', 'FISH'),
-            ])
+        r = w.workReceived(work)
+        receiver.resultReceived.assert_called_once_with(work.toResult('bigfish'))
         return r
 
 
@@ -138,15 +131,12 @@ class ThreadedWorkerTest(TestCase):
             return a + b
         w.registerFunction('foo', 'version1', foo)
         
-        yield w.workReceived('bob', 'foo', 'version1', 'aaaa', [
+        work = Work('bob', 'foo', 'version1', 'aaaa', [
             ('a', 'v1', 'xxxx', 'big', 'BIG'),
             ('b', 'v1', 'xxxx', 'fish', 'FISH'),
         ])
-        receiver.resultReceived.assert_called_once_with('bob', 'foo', 'version1',
-            'aaaa', 'bigfish', [
-                ('a', 'v1', 'xxxx', 'BIG'),
-                ('b', 'v1', 'xxxx', 'FISH'),
-            ])
+        yield w.workReceived(work)
+        receiver.resultReceived.assert_called_once_with(work.toResult('bigfish'))
 
 
     @defer.inlineCallbacks
@@ -166,14 +156,11 @@ class ThreadedWorkerTest(TestCase):
             raise exc
         w.registerFunction('foo', 'v1', foo)
         
-        r = yield w.workReceived('bob', 'foo', 'v1', 'xxxx', [
+        work = Work('bob', 'foo', 'v1', 'xxxx', [
             ('a', 'v1', 'xxxx', 'big', 'BIG'),
         ])
-        receiver.resultErrorReceived.assert_called_once_with('bob', 'foo', 'v1',
-            'xxxx', repr(exc), [
-                ('a', 'v1', 'xxxx', 'BIG'),
-            ])
-        self.assertEqual(r, 'hey', "Should only callback once the error is "
-                         "received.")
+        r = yield w.workReceived(work)
+        receiver.resultErrorReceived.assert_called_once_with(
+            work.toResultError(repr(exc)))
 
 

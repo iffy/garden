@@ -116,24 +116,11 @@ class IReceiver(Interface):
 class IDataStore(Interface):
 
 
-    def put(entity, name, version, lineage, value):
+    def put(data):
         """
         Save data in the store.
         
-        @type entity: str
-        @param entity: Entity name
-        
-        @type name: str
-        @param name: Data name
-        
-        @type version: str
-        @param version: Data version
-        
-        @type lineage: str
-        @param lineage: Data lineal hash
-        
-        @type value: str
-        @param value: Data value
+        @type data: IData
         
         @rtype: C{Deferred}
         @return: On successful storage, will callback with a dictionary with
@@ -193,9 +180,11 @@ class IDataReceiver(Interface):
     I receive data (input + lineal hash)
     """
     
-    def dataReceived(entity, name, version, lineage, value):
+    def dataReceived(data):
         """
         Receive the passed in data.
+        
+        @type data: IData
         
         @return: A C{Deferred} which callbacks to indicate receipt of the data
             and errbacks to indicate data not received.
@@ -204,10 +193,6 @@ class IDataReceiver(Interface):
 
 class IInputSource(Interface):
 
-
-    input_receiver = Attribute("""
-        L{IInputReceiver} set by L{setInputReceiver}
-        """)
 
 
     def setInputReceiver(receiver):
@@ -220,21 +205,11 @@ class IInputSource(Interface):
 class IInputReceiver(Interface):
 
 
-    def inputReceived(entity, name, version, value):
+    def inputReceived(input_data):
         """
         Data received from an outside source.
         
-        @type entity: str
-        @param entity: Entity name
-        
-        @type name: str
-        @param name: Data name
-        
-        @type version: str
-        @param version: Data version
-        
-        @type value: str
-        @param value: Data value
+        @type input_data: IInput
         
         @return: A L{Deferred} which fires to acknowledge receipt of the input.
             Errback indicates the data was not received and should be sent
@@ -256,30 +231,11 @@ class IResultSource(Interface):
 class IResultReceiver(Interface):
 
 
-    def resultReceived(entity, name, version, lineage, value, inputs):
+    def resultReceived(result):
         """
         Called when a work result is received.
         
-        @type entity: str
-        @param entity: Entity name
-        
-        @type name: str
-        @param name: Data name
-        
-        @type version: str
-        @param version: Data version
-        
-        @type lineage: str
-        @param lineage: Data lineage
-        
-        @type value: str
-        @param value: Data value
-        
-        @type inputs: list
-        @param inputs: A list of the input tuples used to compute the data.
-            Each item is a tuple of the form::
-            
-                (name, version, lineage, hash)
+        @type result: IResult
         
         @return: A L{Deferred} which fires to acknowledge receipt of the data.
             Errback indicates the data was not received and should be sent
@@ -301,30 +257,11 @@ class IResultErrorSource(Interface):
 class IResultErrorReceiver(Interface):
 
 
-    def resultErrorReceived(entity, name, version, lineage, error, inputs):
+    def resultErrorReceived(error):
         """
         Called to report an error that happened while doing some work.
 
-        @type entity: str
-        @param entity: Entity name
-        
-        @type name: str
-        @param name: Result destination name
-        
-        @type version: str
-        @param version: Result destination version
-        
-        @type lineage: str
-        @param lineage: Result destination lineal hash
-        
-        @type error: str
-        @param error: Error message (could be a JSON string)
-        
-        @type inputs: list
-        @param inputs: A list of input tuples used to compute the destination.
-            Each item is a tuple of the form::
-            
-                (name, version, lineage, hash)
+        @type error: IResultError
 
         @return: A L{Deferred} which fires to acknowledge receipt of the error.
             Errback indicates the error was not received and should be sent
@@ -334,11 +271,6 @@ class IResultErrorReceiver(Interface):
 
 
 class IWorkSource(Interface):
-
-
-    work_receiver = Attribute("""
-        L{IWorkReceiver} set by L{setWorkReceiver}
-        """)
 
 
     def setWorkReceiver(receiver):
@@ -351,27 +283,11 @@ class IWorkSource(Interface):
 class IWorkReceiver(Interface):
 
 
-    def workReceived(entity, name, version, lineage, inputs):
+    def workReceived(work):
         """
         Receive a single piece of work.
         
-        @type entity: str
-        @param entity: Entity name
-        
-        @type name: str
-        @param name: Destination name
-        
-        @type version: str
-        @param version: Destination version
-        
-        @type lineage: str
-        @param lineage: Destination lineal hash
-        
-        @type inputs: list
-        @param inputs: A list of input tuples needed to compute the destination.
-            Each item is a tuple of the form::
-            
-                (name, version, lineage, value, hash)
+        @type work: IWork
         
         @return: A C{Deferred} which fires once the work has been "received."
             It is up to the sender to define what "received" means, with the

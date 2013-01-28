@@ -39,11 +39,11 @@ class FakeResultReceiver(_SpeccedMock):
     ]
 
 
-    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
+    def resultErrorReceived(self, error):
         pass
 
 
-    def resultReceived(self, entity, name, version, lineage, value, inputs):
+    def resultReceived(self, result):
         pass
 
 
@@ -58,7 +58,7 @@ class FakeWorkReceiver(_SpeccedMock):
     ]
 
 
-    def workReceived(self, entity, name, version, lineage, inputs):
+    def workReceived(self, work):
         pass
 
 
@@ -76,7 +76,7 @@ class FakeWorker(_SpeccedMock):
     result_receiver = None
 
 
-    def workReceived(self, entity, name, version, lineage, inputs):
+    def workReceived(self, work):
         pass
 
 
@@ -104,15 +104,15 @@ class FakeGardener(_SpeccedMock):
     work_receiver = None
     
     
-    def inputReceived(self, entity, name, version, value):
+    def inputReceived(self, data):
         pass
 
 
-    def resultReceived(self, entity, name, version, lineage, value, inputs):
+    def resultReceived(self, result):
         pass
 
 
-    def resultErrorReceived(self, entity, name, version, lineage, error, inputs):
+    def resultErrorReceived(self, error):
         pass
 
 
@@ -134,7 +134,7 @@ class FakeInputReceiver(_SpeccedMock):
         ('inputReceived', lambda *x: defer.succeed('done')),
     ]
 
-    def inputReceived(self, entity, name, version, value):
+    def inputReceived(self, data):
         pass
 
 
@@ -148,7 +148,7 @@ class FakeDataReceiver(_SpeccedMock):
         ('dataReceived', lambda *x: defer.succeed('done')),
     ]
 
-    def dataReceived(self, entity, name, version, lineage, value):
+    def dataReceived(self, data):
         pass
 
 
@@ -162,6 +162,6 @@ class FakeResultErrorReceiver(_SpeccedMock):
     ]
     
 
-    def resultErrorReceived(self, entity, name, version, lineage, value, inputs):
+    def resultErrorReceived(self, error):
         pass
 

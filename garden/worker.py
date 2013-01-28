@@ -49,20 +49,18 @@ class BlockingWorker(object):
         self._functions[(name, version)] = func
 
 
-    def workReceived(self, entity, name, version, lineage, inputs):
+    def workReceived(self, work):
         """
         XXX
         """
-        func = self._functions[(name, version)]
-        args = _getInputValues(inputs)
-        value_stripped_inputs = _makeResultInputs(inputs)
+        func = self._functions[(work.name, work.version)]
+        args = _getInputValues(work.inputs)
         try:
             result = func(*args)
-            return self.result_receiver.resultReceived(entity, name, version,
-                lineage, result, value_stripped_inputs)
+            return self.result_receiver.resultReceived(work.toResult(result))
         except Exception as e:
-            return self.error_receiver.resultErrorReceived(entity, name,
-                version, lineage, repr(e), value_stripped_inputs)
+            return self.error_receiver.resultErrorReceived(
+                work.toResultError(repr(e)))
 
 
     def setResultReceiver(self, receiver):
@@ -114,27 +112,25 @@ class ThreadedWorker(object):
         self.error_receiver = receiver
 
 
-    def workReceived(self, entity, name, version, lineage, inputs):
+    def workReceived(self, work):
         """
         XXX
         """
-        func = self._functions[(name, version)]
-        args = _getInputValues(inputs)
-        value_stripped_inputs = _makeResultInputs(inputs)
+        func = self._functions[(work.name, work.version)]
+        args = _getInputValues(work.inputs)
         
         result = threads.deferToThread(func, *args)
         
-        def gotResult(result, value_stripped_inputs):
-            return self.result_receiver.resultReceived(entity, name, version,
-                lineage, result, value_stripped_inputs)
+        def gotResult(result, work):
+            return self.result_receiver.resultReceived(work.toResult(result))
         
-        def gotError(err, value_stripped_inputs):
-            return self.error_receiver.resultErrorReceived(entity, name,
-                version, lineage, repr(err.value), value_stripped_inputs)
+        def gotError(err, work):
+            return self.error_receiver.resultErrorReceived(
+                work.toResultError(repr(err.value)))
         
         return result.addCallbacks(gotResult, gotError,
-                                   callbackArgs=(value_stripped_inputs,),
-                                   errbackArgs=(value_stripped_inputs,))
+                                   callbackArgs=(work,),
+                                   errbackArgs=(work,),)
 
 
 

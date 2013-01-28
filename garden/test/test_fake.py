@@ -5,6 +5,7 @@ from zope.interface.verify import verifyClass, verifyObject
 from garden.interface import (IResultReceiver, IWorkReceiver, IWorker, 
                               IGardener, IInputReceiver, IDataReceiver,
                               IResultErrorReceiver)
+from garden.data import Input, Data, Work, Result, ResultError
 from garden.test.fake import (FakeResultReceiver, FakeWorkReceiver, FakeWorker,
                               FakeGardener, FakeInputReceiver, FakeDataReceiver,
                               FakeResultErrorReceiver)
@@ -24,14 +25,13 @@ class FakeResultReceiverTest(TestCase):
         By default, receives immediately
         """
         f = FakeResultReceiver()
-        r = f.resultReceived('Yip', 'n', 'v', 'aaaa', 'value', [
+        result = Result('Yip', 'n', 'v', 'aaaa', 'value', [
             ('arg1', 'v1', 'bbbb', 'arg1hash'),
         ])
+        r = f.resultReceived(result)
         self.assertTrue(r.called, "Should call back immediately")
-        f.resultReceived.assert_called_once_with('Yip', 'n', 'v', 'aaaa',
-            'value', [
-                ('arg1', 'v1', 'bbbb', 'arg1hash'),
-            ])
+        f.resultReceived.assert_called_once_with(result)
+
 
 
 class FakeResultErrorReceiverTest(TestCase):
@@ -47,14 +47,13 @@ class FakeResultErrorReceiverTest(TestCase):
         By default, succeeds immediately.
         """
         f = FakeResultErrorReceiver()
-        r = f.resultErrorReceived('Yip', 'n', 'v', 'aaaa', 'error', [
+        error = ResultError('Yip', 'n', 'v', 'aaaa', 'error', [
             ('arg1', 'v1', 'bbbb', 'arg1hash'),
         ])
+        r = f.resultErrorReceived(error)
         self.assertTrue(r.called, "Should call back immediately")
-        f.resultErrorReceived.assert_called_once_with('Yip', 'n', 'v', 'aaaa',
-            'error', [
-                ('arg1', 'v1', 'bbbb', 'arg1hash'),
-            ])
+        f.resultErrorReceived.assert_called_once_with(error)
+
 
 
 class FakeWorkReceiverTest(TestCase):
@@ -70,13 +69,12 @@ class FakeWorkReceiverTest(TestCase):
         Should succeed immediately by default
         """
         f = FakeWorkReceiver()
-        r = f.workReceived('Guy', 'name', 'v1', 'aaaa', [
+        work = Work('Guy', 'name', 'v1', 'aaaa', [
             ('name', 'version', 'bbbb', 'val', 'hash'),
         ])
+        r = f.workReceived(work)
         self.assertTrue(r.called, "Should call back immediately")
-        f.workReceived.assert_called_once_with('Guy', 'name', 'v1', 'aaaa', [
-            ('name', 'version', 'bbbb', 'val', 'hash'),
-        ])
+        f.workReceived.assert_called_once_with(work)
 
 
 
@@ -93,14 +91,12 @@ class FakeWorkerTest(TestCase):
         Should succeed immediately by default
         """
         f = FakeWorker()
-        r = f.workReceived('Guy', 'name', 'version', 'aaaa', [
+        work = Work('Guy', 'name', 'version', 'aaaa', [
             ('name', 'version', 'bbbb', 'val', 'hash'),
         ])
+        r = f.workReceived(work)
         self.assertTrue(r.called, "Should call back immediately")
-        f.workReceived.assert_called_once_with('Guy', 'name', 'version',
-            'aaaa', [
-                ('name', 'version', 'bbbb', 'val', 'hash'),
-            ])
+        f.workReceived.assert_called_once_with(work)
 
 
     def test_setResultReceiver(self):
@@ -136,10 +132,10 @@ class FakeGardenerTest(TestCase):
         By default, succeed immediately
         """
         f = FakeGardener()
-        r = f.inputReceived('Jim', 'name', 'version', 'value')
+        input = Input('Jim', 'name', 'version', 'value')
+        r = f.inputReceived(input)
         self.assertTrue(r.called, "Should call back immediately")
-        f.inputReceived.assert_called_once_with('Jim', 'name', 'version',
-                                                'value')
+        f.inputReceived.assert_called_once_with(input)
 
 
     def test_resultReceived(self):
@@ -147,12 +143,12 @@ class FakeGardenerTest(TestCase):
         Succeed immediately, by default.
         """
         f = FakeGardener()
-        r = f.resultReceived('Jim', 'name', 'version', 'aaaa', 'value', [
+        result = Result('Jim', 'name', 'version', 'aaaa', 'value', [
             ('name', 'version', 'bbbb', 'hash'),
         ])
+        r = f.resultReceived(result)
         self.assertTrue(r.called, "Should call back immediately")
-        f.resultReceived.assert_called_once_with('Jim', 'name', 'version',
-            'aaaa', 'value', [('name', 'version', 'bbbb', 'hash')])
+        f.resultReceived.assert_called_once_with(result)
 
 
     def test_resultErrorReceived(self):
@@ -160,12 +156,12 @@ class FakeGardenerTest(TestCase):
         Succeed immediately, by default.
         """
         f = FakeGardener()
-        r = f.resultErrorReceived('Jim', 'name', 'version', 'aaaa', 'ERRR', [
+        error = ResultError('Jim', 'name', 'version', 'aaaa', 'ERRR', [
             ('name', 'version', 'bbbb', 'hash'),
         ])
+        r = f.resultErrorReceived(error)
         self.assertTrue(r.called, "Should call back immediately")
-        f.resultErrorReceived.assert_called_once_with('Jim', 'name', 'version',
-            'aaaa', 'ERRR', [('name', 'version', 'bbbb', 'hash')])
+        f.resultErrorReceived.assert_called_once_with(error)
 
 
     def test_setWorkReceiver(self):
@@ -192,10 +188,10 @@ class FakeInputReceiverTest(TestCase):
         Succeed immediately by default
         """
         f = FakeInputReceiver()
-        r = f.inputReceived('Jim', 'name', 'version', 'value')
+        input = Input('Jim', 'name', 'version', 'value')
+        r = f.inputReceived(input)
         self.assertTrue(r.called, "Should call back immediately")
-        f.inputReceived.assert_called_once_with('Jim', 'name', 'version',
-                                                'value')
+        f.inputReceived.assert_called_once_with(input)
 
 
 class FakeDataReceiverTest(TestCase):
@@ -211,8 +207,9 @@ class FakeDataReceiverTest(TestCase):
         Should succeed immediately by default
         """
         f = FakeDataReceiver()
-        r = f.dataReceived('Guy', 'name', 'v1', 'aaaa', 'value')
+        data = Data('Guy', 'name', 'v1', 'aaaa', 'value')
+        r = f.dataReceived(data)
         self.assertTrue(r.called, "Should call back immediately")
-        f.dataReceived.assert_called_once_with('Guy', 'name', 'v1', 'aaaa', 'value')
+        f.dataReceived.assert_called_once_with(data)
 
 
