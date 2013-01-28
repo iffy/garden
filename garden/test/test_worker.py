@@ -2,7 +2,7 @@ from twisted.trial.unittest import TestCase
 from twisted.internet import defer
 from zope.interface.verify import verifyClass, verifyObject
 
-from garden.interface import IWorker
+from garden.interface import IWorker, IWork, IResult, IResultError
 from garden.data import Input, Data, Work, Result, ResultError
 from garden.worker import BlockingWorker, ThreadedWorker
 from garden.test.fake import FakeResultReceiver, FakeResultErrorReceiver
@@ -15,6 +15,23 @@ class BlockingWorkerTest(TestCase):
     def test_IWorker(self):
         verifyClass(IWorker, BlockingWorker)
         verifyObject(IWorker, BlockingWorker())
+
+
+    def test_sourceInterfaces(self):
+        """
+        Should be a source of results and errors
+        """
+        self.assertTrue(IResult in BlockingWorker.sourceInterfaces)
+        self.assertTrue(IResultError in BlockingWorker.sourceInterfaces)
+
+
+    def test_receiverMapping(self):
+        """
+        Should receive IWork, and that's it.
+        """
+        worker = BlockingWorker()
+        mapping = worker.receiverMapping()
+        self.assertEqual(mapping[IWork], worker.workReceived)
 
 
     def test_workReceived(self):
@@ -105,6 +122,23 @@ class ThreadedWorkerTest(TestCase):
     def test_IWorker(self):
         verifyClass(IWorker, ThreadedWorker)
         verifyObject(IWorker, ThreadedWorker())
+
+
+    def test_sourceInterfaces(self):
+        """
+        Should be a source of results and errors
+        """
+        self.assertTrue(IResult in ThreadedWorker.sourceInterfaces)
+        self.assertTrue(IResultError in ThreadedWorker.sourceInterfaces)
+
+
+    def test_receiverMapping(self):
+        """
+        Should receive IWork, and that's it.
+        """
+        worker = ThreadedWorker()
+        mapping = worker.receiverMapping()
+        self.assertEqual(mapping[IWork], worker.workReceived)
 
 
     def test_setResultReceiver(self):

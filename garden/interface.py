@@ -102,7 +102,6 @@ class ISourceable(Interface):
     sourceInterfaces = Attribute("A list of the interfaces this thing provides")
 
 
-
 _cache = {}
 def adaptISourceableToISource(sourceable):
     global _cache
@@ -321,13 +320,12 @@ class IWorkReceiver(Interface):
 
 
 
-class IWorker(IWorkReceiver, IResultSource, IResultErrorSource):
+class IWorker(ISourceable, IReceiver):
     pass
 
 
 
-class IGardener(IResultReceiver, IResultErrorReceiver, IDataSource,
-                IInputReceiver, IWorkSource):
+class IGardener(ISourceable, IReceiver):
     pass
 
 

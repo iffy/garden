@@ -1,7 +1,7 @@
 from zope.interface import implements
 from twisted.internet import threads
 
-from garden.interface import IWorker
+from garden.interface import IWorker, IWork, IResult, IResultError
 
 
 
@@ -29,12 +29,22 @@ class BlockingWorker(object):
     """
     
     implements(IWorker)
+    sourceInterfaces = IResult, IResultError
     
     result_receiver = None
     
     
     def __init__(self):
         self._functions = {}
+
+
+    def receiverMapping(self):
+        """
+        XXX
+        """
+        return {
+            IWork: self.workReceived,
+        }
     
     
     def registerFunction(self, name, version, func):
@@ -81,13 +91,23 @@ class ThreadedWorker(object):
     """
     
     implements(IWorker)
+    sourceInterfaces = IResult, IResultError
     
     result_receiver = None
 
 
     def __init__(self):
         self._functions = {}
-    
+
+
+    def receiverMapping(self):
+        """
+        XXX
+        """
+        return {
+            IWork: self.workReceived,
+        }
+
     
     def registerFunction(self, name, version, func):
         """
