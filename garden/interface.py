@@ -1,4 +1,6 @@
 from zope.interface import Interface, Attribute
+from twisted.python import components
+
 
 
 class IInput(Interface):
@@ -94,6 +96,26 @@ class ISource(Interface):
 
 
 
+class ISourceable(Interface):
+
+
+    sourceInterfaces = Attribute("A list of the interfaces this thing provides")
+
+
+
+_cache = {}
+def adaptISourceableToISource(sourceable):
+    global _cache
+    from garden.glue import Source
+    if sourceable in _cache:
+        return _cache[sourceable]
+    result = _cache[sourceable] = Source(sourceable.sourceInterfaces)
+    return result
+
+components.registerAdapter(adaptISourceableToISource, ISourceable, ISource)
+
+
+
 class IReceiver(Interface):
 
 
@@ -109,7 +131,6 @@ class IReceiver(Interface):
                 ...
             }
         """
-
 
 
 

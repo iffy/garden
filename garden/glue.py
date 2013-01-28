@@ -44,6 +44,10 @@ class Source(object):
         """
         @raise TypeError: If the C{data} doesn't provide any of the interfaces
             I advertise to emit (from my initialization).
+        
+        @return: A C{DeferredList} that will callback once all receivers have
+            successfully called back.  It will errback if any of the receivers
+            errbacks.
         """
         provided = providedBy(data)
         common = set(provided) & self.interfaces
