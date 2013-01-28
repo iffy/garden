@@ -6,6 +6,7 @@ from zope.interface import Interface, implements
 from mock import create_autospec
 
 from garden.interface import ISource, IReceiver
+from garden.error import NothingToOffer
 from garden.glue import Source
 
 
@@ -54,7 +55,7 @@ class SourceTest(TestCase):
         By default, you can subscribe to data of a particular type and receive
         emissions.
         """        
-        source = Source()
+        source = Source([IA, IB])
         
         recv = FakeReceiver([IA, IB])
         source.subscribe(recv)
@@ -73,7 +74,7 @@ class SourceTest(TestCase):
         If a receiver doesn't accept a particular interface, it should not
         receive it.
         """
-        source = Source()
+        source = Source([IA, IB])
         
         recv = FakeReceiver([IA])
         source.subscribe(recv)
@@ -92,7 +93,7 @@ class SourceTest(TestCase):
         The emission should not return until all the receivers acknowledge
         receipt.
         """
-        source = Source()
+        source = Source([IA])
         
         recv1 = FakeReceiver([IA], defer.Deferred())
         source.subscribe(recv1)
@@ -114,7 +115,7 @@ class SourceTest(TestCase):
         """
         Errors should cause the result to errback
         """
-        source = Source()
+        source = Source([IA])
         
         recv1 = FakeReceiver([IA], defer.succeed('foo'))
         source.subscribe(recv1)
@@ -130,4 +131,30 @@ class SourceTest(TestCase):
             pass
         return r.addCallbacks(cb, eb)
 
+
+    def test_NothingToOffer(self):
+        """
+        If the Source isn't a source of an interface of the receiver, it should
+        raise an exception.
+        """
+        
+        source = Source([IA])
+        
+        recv = FakeReceiver([IB])
+        self.assertRaises(NothingToOffer, source.subscribe, recv)
+
+        # this shouldn't fail, because at least one of the interfaces this
+        # receiver cares about is provided by the source.
+        recv = FakeReceiver([IA, IB])
+        r = source.subscribe(recv)
+        self.assertEqual(r, [IA], "Should list interfaces that will be used")
+
+
+    def test_emitBadType(self):
+        """
+        You can't emit an Interface that wasn't provided on init
+        """
+        source = Source()
+        self.assertRaises(TypeError, source.emit, A())
+        self.assertRaises(TypeError, source.emit, B())
 

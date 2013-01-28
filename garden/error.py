@@ -4,3 +4,4 @@ class Error(Exception):
     """
 
 
+class NothingToOffer(Error): pass
