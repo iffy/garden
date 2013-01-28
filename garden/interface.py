@@ -74,21 +74,23 @@ class IResultError(Interface):
 class ISource(Interface):
 
 
-    def addReceiver(receiver):
+    def subscribe(receiver):
         """
         Add an IReceiver to be called with data of a particular interface.
         
         @type receiver: L{IReceiver}
-        """
-
-
-    def removeReceiver(receiver):
-        """
-        Remove an IReceiver.
         
-        @type receiver: L{IReceiver}
+        @raise NothingToOffer: If the receiver can't accept any of the data
+            this source can provide.
         """
 
+
+    def emit(data):
+        """
+        Emit some data to all this source's subscribers.
+        
+        @return: A C{DeferredList}
+        """
 
 
 
@@ -107,9 +109,6 @@ class IReceiver(Interface):
                 ...
             }
         """
-
-
-
 
 
 
