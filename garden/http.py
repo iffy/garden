@@ -5,6 +5,7 @@ from zope.interface import implements
 
 import json
 
+from garden.data import Input
 from garden.interface import IInputSource, IDataReceiver
 
 
@@ -40,7 +41,8 @@ class WebInputSource(Resource):
         version = request.args['version'][0]
         value = request.args['value'][0]
         
-        res = self.input_receiver.inputReceived(entity, name, version, value)
+        res = self.input_receiver.inputReceived(Input(entity, name, version,
+                                                      value))
         def received(result):
             request.write('success')
             request.finish()
@@ -136,7 +138,8 @@ class WebDataFeed(Resource):
         return NOT_DONE_YET
 
 
-    def dataReceived(self, entity, name, version, lineage, value):
+    def dataReceived(self, data):
+        entity, name, version, lineage, value = data
         for s in list(self.spectators):
             if s.transport.disconnected:
                 self.spectators.remove(s)

@@ -12,6 +12,7 @@ from twisted.web.test.test_web import DummyChannel
 from twisted.web.http_headers import Headers
 from twisted.web.http import parse_qs
 
+from garden.data import Input
 from garden.interface import IInputSource, IDataReceiver
 from garden.http import WebInputSource, WebDataFeed
 from garden.test.fake import FakeInputReceiver
@@ -146,8 +147,8 @@ class WebInputSourceTest(TestCase):
         self.assertFalse(result.called, "Should not be done yet because the "
                          "InputReceiver hasn't acknowledged receipt yet")
         
-        receiver.inputReceived.assert_called_once_with('Joe', 'cake', '1',
-                'abc123!@#&=_ \x00\x01\x02')
+        receiver.inputReceived.assert_called_once_with(Input('Joe', 'cake', '1',
+                'abc123!@#&=_ \x00\x01\x02'))
         d.callback('foo')
         self.assertTrue(result.called, "Should have a result now")
         self.assertTrue(request.write.call_count > 0, "Should have written "
