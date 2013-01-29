@@ -2,7 +2,7 @@ from twisted.python import usage, reflect, log
 from twisted.internet import reactor, endpoints
 from twisted.application import internet
 
-from garden.interface import IWorker
+from garden.interface import IWorker, ISource
 from garden.path import Garden
 from garden.gardener import Gardener
 
@@ -60,13 +60,13 @@ def makeService(options):
     http_service = internet.StreamServerEndpointService(endpoint, site)
     
     # gardener
-    gardener = Gardener(garden, store, accept_all_lineages=True)
+    gardener = Gardener(garden, store)
     
     # hook them all together
-    gardener.setWorkReceiver(worker)
-    worker.setResultReceiver(gardener)
-    http_input_source.setInputReceiver(gardener)
-    gardener.setDataReceiver(http_data_receiver)
+    gardener.subscribe(worker)
+    ISource(worker).subscribe(gardener)
+    ISource(http_input_source).subscribe(gardener)
+    gardener.subscribe(http_data_receiver)
     
     return http_service
 

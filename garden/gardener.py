@@ -262,6 +262,7 @@ class Gardener(object):
             IResult: self.resultReceived,
             IResultError: self.resultReceived,
             IWork: self.workReceived,
+            IInput: self.inputReceived,
         }
 
 
